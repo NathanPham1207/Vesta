@@ -1,31 +1,51 @@
-import { StyleSheet } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppHeader } from '@/components/ui/AppHeader';
+import { FreshnessGuideCard } from '@/components/home/FreshnessGuideCard';
+import { ExpiringSoonCard } from '@/components/home/ExpiringSoonCard';
+import { CategoryGrid } from '@/components/home/CategoryGrid';
+import { categories, expiringSoonCount } from '@/constants/mockData';
+import { COLORS } from '@/constants/colors';
+import { SPACING } from '@/constants/spacing';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
-
-export default function TabOneScreen() {
+export default function HomeScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
-    </View>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <AppHeader
+        title="Vesta"
+        rightAction={{
+          onPress: () => {},
+        }}
+      />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <FreshnessGuideCard />
+        <View style={styles.spacer} />
+        <ExpiringSoonCard count={expiringSoonCount} />
+        <View style={styles.spacer} />
+        <CategoryGrid categories={categories} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: COLORS.background,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  scroll: {
+    flex: 1,
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  content: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+  },
+  spacer: {
+    height: SPACING.lg,
   },
 });
