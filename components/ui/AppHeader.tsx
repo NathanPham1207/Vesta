@@ -1,5 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import {
+  CHROME_BAR_MIN_HEIGHT,
+  CHROME_BAR_PADDING_BOTTOM,
+  CHROME_BAR_PADDING_TOP,
+  chromeBarBottomHairline,
+  chromeBarShadow,
+} from '@/constants/chromeBar';
 import { COLORS } from '@/constants/colors';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
@@ -51,8 +58,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.surface,
     paddingHorizontal: SPACING.lg,
+    paddingTop: CHROME_BAR_PADDING_TOP,
+    paddingBottom: CHROME_BAR_PADDING_BOTTOM,
+    minHeight: CHROME_BAR_MIN_HEIGHT,
+    ...chromeBarBottomHairline,
+    ...chromeBarShadow,
   },
   left: {
     flex: 1,

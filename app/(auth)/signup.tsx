@@ -1,73 +1,168 @@
-import React, { useMemo, useState } from 'react';
+import { AppButton } from '@/components/ui/AppButton';
+import { AppCard } from '@/components/ui/AppCard';
+import { AppInput } from '@/components/ui/AppInput';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import { AUTH_ROUTES } from '@/constants/authRoutes';
+import { COLORS } from '@/constants/colors';
+import { SPACING } from '@/constants/spacing';
+import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  getEmailValidationError,
+  isValidEmailFormat,
+} from '@/utils/validation/email';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Image,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { AppButton } from '@/components/ui/AppButton';
-import { AppCard } from '@/components/ui/AppCard';
-import { AppInput } from '@/components/ui/AppInput';
-import { PasswordInput } from '@/components/ui/PasswordInput';
-import { Alert } from '@/components/ui/Alert';
-import { COLORS } from '@/constants/colors';
-import { SPACING } from '@/constants/spacing';
-import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
-import { AUTH_SIMULATED_LATENCY_MS } from '@/services/auth';
-import { isValidEmail } from '@/utils/validators/authValidators';
+const MIN_PASSWORD = 8;
+const PASSWORD_REQUIRED = 'Password is required.';
+const PASSWORD_TOO_SHORT = `Password must be at least ${MIN_PASSWORD} characters.`;
 
 export default function SignUpScreen() {
+  const router = useRouter();
   const { signUp } = useAuth();
 
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [touched, setTouched] = useState({
+    fullName: false,
+    email: false,
+    password: false,
+    confirmPassword: false,
+  });
   const [loading, setLoading] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const emailError = useMemo(() => {
-    if (!email) return '';
-    if (!isValidEmail(email)) return 'Please enter a valid email.';
-    return '';
-  }, [email]);
+  const fullNameRef = useRef(fullName);
+  const emailRef = useRef(email);
+  const passwordRef = useRef(password);
+  const confirmPasswordRef = useRef(confirmPassword);
+  fullNameRef.current = fullName;
+  emailRef.current = email;
+  passwordRef.current = password;
+  confirmPasswordRef.current = confirmPassword;
 
-  const passwordError = useMemo(() => {
-    if (!password) return '';
-    if (password.length < 6) return 'Password must be at least 6 characters.';
-    return '';
-  }, [password]);
+  const fullNameInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmInputRef = useRef<TextInput>(null);
 
-  const confirmPasswordError = useMemo(() => {
-    if (!confirmPassword) return '';
-    if (confirmPassword !== password) return 'Passwords do not match.';
-    return '';
-  }, [confirmPassword, password]);
+  const onFullNameChange = useCallback((text: string) => {
+    setFullName(text);
+    setTouched((t) => ({ ...t, fullName: true }));
+  }, []);
 
-  const canSubmit = useMemo(() => {
-    return isValidEmail(email) && password.length >= 6 && confirmPassword === password;
-  }, [email, password, confirmPassword]);
+  const onEmailChange = useCallback((text: string) => {
+    setEmail(text);
+    setTouched((t) => ({ ...t, email: true }));
+  }, []);
 
-  // Required by the assignment: handles validation gating + loading/error UI.
+  const onPasswordChange = useCallback((text: string) => {
+    setPassword(text);
+    setTouched((t) => ({ ...t, password: true }));
+  }, []);
+
+  const onConfirmPasswordChange = useCallback((text: string) => {
+    setConfirmPassword(text);
+    setTouched((t) => ({ ...t, confirmPassword: true }));
+  }, []);
+
+  const showNameError = touched.fullName || fullName.length > 0;
+  const nameError =
+    showNameError && !fullName.trim() ? 'Name is required.' : undefined;
+
+  const showEmailError = touched.email || email.length > 0;
+  const emailError = showEmailError ? getEmailValidationError(email) : undefined;
+
+  const showPasswordError = touched.password || password.length > 0;
+  const passwordError = showPasswordError
+    ? !password.trim()
+      ? PASSWORD_REQUIRED
+      : password.trim().length < MIN_PASSWORD
+        ? PASSWORD_TOO_SHORT
+        : undefined
+    : undefined;
+
+  const showConfirmError =
+    touched.confirmPassword || confirmPassword.length > 0;
+  const confirmError = showConfirmError
+    ? !confirmPassword.trim()
+      ? 'Please confirm your password.'
+      : confirmPassword !== password
+        ? 'Passwords do not match.'
+        : undefined
+    : undefined;
+
+  const passwordsMatch =
+    password.trim().length >= MIN_PASSWORD &&
+    confirmPassword === password &&
+    confirmPassword.trim().length > 0;
+
+  const canSignUp =
+    fullName.trim().length > 0 &&
+    isValidEmailFormat(email) &&
+    password.trim().length >= MIN_PASSWORD &&
+    passwordsMatch;
+
+  const goToLogin = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace(AUTH_ROUTES.login);
+    }
+  };
+
   const handleSignUp = async () => {
-    setSubmitError('');
+    if (loading) {
+      return;
+    }
+
+    setFormError('');
+    setTouched({
+      fullName: true,
+      email: true,
+      password: true,
+      confirmPassword: true,
+    });
+
+    const name = fullNameRef.current.trim();
+    const currentEmail = emailRef.current;
+    const currentPassword = passwordRef.current;
+    const currentConfirm = confirmPasswordRef.current;
+
+    if (
+      !name ||
+      !isValidEmailFormat(currentEmail) ||
+      currentPassword.trim().length < MIN_PASSWORD ||
+      currentConfirm !== currentPassword
+    ) {
+      return;
+    }
+
     setLoading(true);
     try {
-      if (AUTH_SIMULATED_LATENCY_MS > 0) {
-        await new Promise<void>((resolve) =>
-          setTimeout(resolve, AUTH_SIMULATED_LATENCY_MS),
-        );
+      const result = await signUp(name, currentEmail, currentPassword);
+      if (result.ok) {
+        router.replace(AUTH_ROUTES.tabs);
+      } else {
+        setFormError(result.message);
       }
-      await signUp(email, password);
-      router.replace('/(tabs)');
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Something went wrong.');
+    } catch {
+      setFormError('Something went wrong.');
     } finally {
       setLoading(false);
     }
@@ -81,67 +176,112 @@ export default function SignUpScreen() {
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.logoBlock}>
-            <Text style={styles.logo}>Vesta</Text>
-            <Text style={styles.welcome}>Create your account</Text>
+            <View style={styles.brandRow}>
+              <Image
+                source={require('../../assets/images/logo_vesta_clean.png')}
+                style={styles.brandLogo}
+              />
+              <Text style={styles.brandName}>Vesta</Text>
+            </View>
+            <Text style={styles.subtitle}>Create your account</Text>
           </View>
 
-          <AppCard style={styles.signUpCard}>
+          <AppCard style={styles.card}>
+            {formError ? (
+              <View style={styles.banner}>
+                <Text style={styles.bannerText}>{formError}</Text>
+              </View>
+            ) : null}
             <Text style={styles.cardTitle}>Sign Up</Text>
-
             <AppInput
+              ref={fullNameInputRef}
+              label="Full name"
+              value={fullName}
+              onChangeText={onFullNameChange}
+              placeholder="Jane Doe"
+              autoCapitalize="words"
+              autoCorrect={false}
+              error={nameError}
+              onBlur={() => setTouched((t) => ({ ...t, fullName: true }))}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => emailInputRef.current?.focus()}
+            />
+            <AppInput
+              ref={emailInputRef}
               label="Email"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={onEmailChange}
               placeholder="you@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              error={emailError || undefined}
+              error={emailError}
+              onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
             />
-
             <PasswordInput
-              label="Password"
+              ref={passwordInputRef}
               value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              error={passwordError || undefined}
+              onChangeText={onPasswordChange}
+              placeholder="At least 8 characters"
+              error={passwordError}
+              onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => confirmInputRef.current?.focus()}
             />
-
             <PasswordInput
-              label="Confirm Password"
+              ref={confirmInputRef}
+              label="Confirm password"
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={onConfirmPasswordChange}
               placeholder="Re-enter your password"
-              error={confirmPasswordError || undefined}
+              error={confirmError}
+              onBlur={() =>
+                setTouched((t) => ({ ...t, confirmPassword: true }))
+              }
+              returnKeyType="go"
+              blurOnSubmit
+              onSubmitEditing={() => {
+                if (loading) {
+                  return;
+                }
+                void handleSignUp();
+              }}
             />
-
-            {submitError ? (
-              <Alert variant="destructive" style={styles.submitAlert}>
-                <Text style={styles.submitAlertText}>{submitError}</Text>
-              </Alert>
-            ) : null}
-
             <AppButton
-              title={loading ? 'Creating...' : 'Create Account'}
+              title="Create account"
               onPress={handleSignUp}
+              disabled={loading || !canSignUp}
               loading={loading}
-              disabled={!canSubmit}
-              style={styles.signUpButton}
+              style={styles.submitButton}
             />
-
-            <Pressable
-              onPress={() => router.push('/(auth)/login')}
-              style={styles.signInRow}
-              hitSlop={12}
-            >
-              <Text style={styles.signInText}>Already have an account? </Text>
-              <Text style={styles.signInLink}>Sign in</Text>
-            </Pressable>
+            <View style={styles.demoBox}>
+              <Text style={styles.demoText}>
+                Demo: valid email and password (8+ chars). Use taken@test.com to
+                see a duplicate-email error.
+              </Text>
+            </View>
           </AppCard>
+
+          <Pressable
+            onPress={goToLogin}
+            style={({ pressed }) => [
+              styles.footerRow,
+              Platform.OS === 'web' && { cursor: 'pointer' as const },
+              pressed && Platform.OS === 'web' && { opacity: 0.85 },
+            ]}
+          >
+            <Text style={styles.footerMuted}>Already have an account? </Text>
+            <Text style={styles.footerLink}>Sign in</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -165,19 +305,41 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xxxl,
     marginBottom: SPACING.xxl,
   },
-  logo: {
-    fontSize: 40,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  brandLogo: {
+    width: 52,
+    height: 52,
+    resizeMode: 'contain',
+  },
+  brandName: {
+    marginLeft: SPACING.sm,
+    fontSize: 28,
     fontWeight: FONT_WEIGHT.bold,
     color: COLORS.primary,
   },
-  welcome: {
+  subtitle: {
     fontSize: FONT_SIZE.body,
     color: COLORS.subtext,
-    marginTop: SPACING.sm,
     textAlign: 'center',
   },
-  signUpCard: {
+  card: {
     marginBottom: SPACING.xl,
+  },
+  banner: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 10,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  bannerText: {
+    fontSize: FONT_SIZE.small,
+    color: COLORS.danger,
+    textAlign: 'center',
   },
   cardTitle: {
     fontSize: FONT_SIZE.sectionTitle,
@@ -185,30 +347,32 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: SPACING.lg,
   },
-  submitAlert: {
-    marginBottom: SPACING.lg,
-  },
-  submitAlertText: {
-    color: COLORS.danger,
-    fontSize: FONT_SIZE.caption,
-    fontWeight: FONT_WEIGHT.semibold,
-  },
-  signUpButton: {
+  submitButton: {
     marginTop: SPACING.sm,
   },
-  signInRow: {
+  demoBox: {
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+    backgroundColor: COLORS.muted,
+    borderRadius: 8,
+  },
+  demoText: {
+    fontSize: FONT_SIZE.caption,
+    color: COLORS.subtext,
+    textAlign: 'center',
+  },
+  footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: SPACING.xxl,
   },
-  signInText: {
+  footerMuted: {
     fontSize: FONT_SIZE.body,
     color: COLORS.subtext,
   },
-  signInLink: {
+  footerLink: {
     fontSize: FONT_SIZE.body,
     color: COLORS.primary,
     fontWeight: FONT_WEIGHT.semibold,
   },
 });
-

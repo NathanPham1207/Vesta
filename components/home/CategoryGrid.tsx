@@ -29,10 +29,10 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -SPACING.sm,
+    marginHorizontal: -SPACING.xs,
   },
   cell: {
     width: '50%',
-    padding: SPACING.sm,
+    padding: SPACING.xs,
   },
 });

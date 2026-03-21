@@ -36,8 +36,8 @@ const styles = StyleSheet.create({
   },
   legend: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.lg,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   legendRow: {
     flexDirection: 'row',
@@ -45,9 +45,9 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   dotFresh: {
     backgroundColor: COLORS.success,

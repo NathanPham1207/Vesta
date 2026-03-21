@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { TextInput, TextInputProps } from 'react-native';
 import { AppInput } from './AppInput';
 import { COLORS } from '@/constants/colors';
 import { FONT_SIZE } from '@/constants/typography';
 
-interface PasswordInputProps {
+interface PasswordInputProps extends Omit<
+  React.ComponentProps<typeof AppInput>,
+  'secureTextEntry'
+> {
   label?: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -12,41 +16,50 @@ interface PasswordInputProps {
   error?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: boolean;
+  onBlur?: TextInputProps['onBlur'];
 }
 
-export function PasswordInput({
-  label = 'Password',
-  value,
-  onChangeText,
-  placeholder = 'Enter your password',
-  error,
-  ...rest
-}: PasswordInputProps) {
-  const [visible, setVisible] = useState(false);
+export const PasswordInput = React.forwardRef<TextInput, PasswordInputProps>(
+  function PasswordInput(
+    {
+      label = 'Password',
+      value,
+      onChangeText,
+      placeholder = 'Enter your password',
+      error,
+      onBlur,
+      ...rest
+    },
+    ref,
+  ) {
+    const [visible, setVisible] = useState(false);
 
-  return (
-    <View style={styles.wrapper}>
-      <AppInput
-        label={label}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        secureTextEntry={!visible}
-        error={error}
-        autoCapitalize="none"
-        autoCorrect={false}
-        {...rest}
-      />
-      <Pressable
-        style={styles.eyeButton}
-        onPress={() => setVisible((v) => !v)}
-        hitSlop={12}
-      >
-        <Text style={styles.eyeText}>{visible ? 'Hide' : 'Show'}</Text>
-      </Pressable>
-    </View>
-  );
-}
+    return (
+      <View style={styles.wrapper}>
+        <AppInput
+          ref={ref}
+          label={label}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          secureTextEntry={!visible}
+          error={error}
+          autoCapitalize="none"
+          autoCorrect={false}
+          {...rest}
+          onBlur={onBlur}
+        />
+        <Pressable
+          style={styles.eyeButton}
+          onPress={() => setVisible((v) => !v)}
+          hitSlop={12}
+        >
+          <Text style={styles.eyeText}>{visible ? 'Hide' : 'Show'}</Text>
+        </Pressable>
+      </View>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   wrapper: {

@@ -1,9 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { AppCard } from '@/components/ui/AppCard';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLORS } from '@/constants/colors';
+import { RADIUS } from '@/constants/radius';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+
+/** Soft orange theme aligned with reference (border, icon, count). */
+const ORANGE_ACCENT = '#F97316';
+const BORDER_SOFT_ORANGE = '#FDBA74';
+const CREAM_BG = '#FFF8F0';
 
 interface ExpiringSoonCardProps {
   count: number;
@@ -12,23 +18,47 @@ interface ExpiringSoonCardProps {
 
 export function ExpiringSoonCard({ count, onPress }: ExpiringSoonCardProps) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
-      <AppCard>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [pressed && styles.pressed]}
+    >
+      <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.label}>Expiring Soon</Text>
+          <View style={styles.left}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={22}
+              color={ORANGE_ACCENT}
+            />
+            <Text style={styles.label}>Expiring Soon</Text>
+          </View>
           <Text style={styles.count}>{count}</Text>
         </View>
-        <Text style={styles.hint}>Items to use or toss</Text>
-      </AppCard>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  card: {
+    backgroundColor: CREAM_BG,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: BORDER_SOFT_ORANGE,
+    paddingVertical: SPACING.sm + 2,
+    paddingHorizontal: SPACING.lg,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flexShrink: 1,
   },
   label: {
     fontSize: FONT_SIZE.body,
@@ -36,16 +66,11 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   count: {
-    fontSize: FONT_SIZE.h2,
+    fontSize: 32,
     fontWeight: FONT_WEIGHT.bold,
-    color: COLORS.warning,
-  },
-  hint: {
-    fontSize: FONT_SIZE.caption,
-    color: COLORS.subtext,
-    marginTop: SPACING.xs,
+    color: ORANGE_ACCENT,
   },
   pressed: {
-    opacity: 0.9,
+    opacity: 0.92,
   },
 });

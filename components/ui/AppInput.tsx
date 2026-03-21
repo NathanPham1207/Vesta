@@ -11,29 +11,27 @@ import { RADIUS } from '@/constants/radius';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE } from '@/constants/typography';
 
-interface AppInputProps extends TextInputProps {
+export interface AppInputProps extends TextInputProps {
   label?: string;
   error?: string;
 }
 
-export function AppInput({
-  label,
-  error,
-  style,
-  ...props
-}: AppInputProps) {
-  return (
-    <View style={styles.wrapper}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
-      <TextInput
-        placeholderTextColor={COLORS.subtext}
-        style={[styles.input, error ? styles.inputError : null, style]}
-        {...props}
-      />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-    </View>
-  );
-}
+export const AppInput = React.forwardRef<TextInput, AppInputProps>(
+  function AppInput({ label, error, style, ...props }, ref) {
+    return (
+      <View style={styles.wrapper}>
+        {label ? <Text style={styles.label}>{label}</Text> : null}
+        <TextInput
+          ref={ref}
+          placeholderTextColor={COLORS.subtext}
+          {...props}
+          style={[styles.input, error ? styles.inputError : null, style]}
+        />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      </View>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   wrapper: {

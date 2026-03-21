@@ -1,8 +1,11 @@
+/** Counts are derived on Home from shared inventory state. */
 export const categories = [
-  { id: '1', title: 'Beverages', icon: '☕', count: 1 },
-  { id: '2', title: 'Dairy', icon: '🥛', count: 4 },
-  { id: '3', title: 'Fruits', icon: '🍎', count: 3 },
-  { id: '4', title: 'Groceries', icon: '🛒', count: 3 },
+  { id: '1', title: 'Beverages', icon: '☕', count: 0 },
+  { id: '2', title: 'Dairy', icon: '🥛', count: 0 },
+  { id: '3', title: 'Fruits', icon: '🍎', count: 0 },
+  { id: '4', title: 'Groceries', icon: '🛒', count: 0 },
+  { id: '5', title: 'Meat', icon: '🥩', count: 0 },
+  { id: '6', title: 'Vegetables', icon: '🥦', count: 0 },
 ];
 
 export const recipes = [
@@ -57,5 +60,3 @@ export const receipts = [
     itemCount: 8,
   },
 ];
-
-export const expiringSoonCount = 3;
