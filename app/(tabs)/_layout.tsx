@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { Tabs } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLORS } from '@/constants/colors';
 import {
   CHROME_BAR_PADDING_TOP,
@@ -8,21 +8,19 @@ import {
   tabBarOuterHeight,
   tabBarPaddingBottom,
 } from '@/constants/chromeBar';
-import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import { FONT_WEIGHT } from '@/constants/typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function TabIcon({
-  symbol,
+type IonName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabBarIcon({
+  name,
   color,
 }: {
-  symbol: string;
+  name: IonName;
   color: string;
 }) {
-  return (
-    <Text style={{ fontSize: 23, lineHeight: 24, color, textAlign: 'center' }}>
-      {symbol}
-    </Text>
-  );
+  return <Ionicons name={name} size={22} color={color} />;
 }
 
 export default function TabLayout() {
@@ -76,7 +74,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => (
-            <TabIcon symbol="⌂" color={color} />
+            <TabBarIcon name="home-outline" color={color} />
           ),
         }}
       />
@@ -85,7 +83,7 @@ export default function TabLayout() {
         options={{
           title: 'Scan',
           tabBarIcon: ({ color }) => (
-            <TabIcon symbol="◉" color={color} />
+            <TabBarIcon name="scan-outline" color={color} />
           ),
         }}
       />
@@ -94,7 +92,7 @@ export default function TabLayout() {
         options={{
           title: 'Recipes',
           tabBarIcon: ({ color }) => (
-            <TabIcon symbol="⌸" color={color} />
+            <TabBarIcon name="restaurant-outline" color={color} />
           ),
         }}
       />
@@ -103,7 +101,7 @@ export default function TabLayout() {
         options={{
           title: 'Receipts',
           tabBarIcon: ({ color }) => (
-            <TabIcon symbol="▣" color={color} />
+            <TabBarIcon name="receipt-outline" color={color} />
           ),
         }}
       />

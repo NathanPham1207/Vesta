@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -9,15 +10,14 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronDown, ChevronUp, X } from 'lucide-react-native';
 
+import { InventoryItemCard } from '@/components/inventory/InventoryItemCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SearchBar } from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
+import type { InventoryItem } from '@/constants/mockInventoryItems';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
-import { EmptyState } from '@/components/ui/EmptyState';
-import type { InventoryItem } from '@/constants/mockInventoryItems';
-import { InventoryItemCard } from '@/components/inventory/InventoryItemCard';
-import { SearchBar } from '@/components/ui/SearchBar';
 
 export type CategoryDetailFilter = 'all' | 'fresh' | 'good' | 'expiringSoon' | 'expired';
 

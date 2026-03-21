@@ -59,15 +59,19 @@ function matchesMainIngredient(recipe: RecipeItem, keyword: string): boolean {
   const inText =
     recipe.title.toLowerCase().includes(q) ||
     recipe.description.toLowerCase().includes(q);
-  const inIngredients = recipe.ingredients.some((ing) =>
-    ing.toLowerCase().includes(q),
+  const inIngredients = recipe.ingredients.some(
+    (ing) =>
+      ing.name.toLowerCase().includes(q) ||
+      ing.quantity.toLowerCase().includes(q),
   );
   return inText || inIngredients;
 }
 
 function matchesDietary(recipe: RecipeItem, dietary: DietaryFilterId): boolean {
   if (dietary === 'all') return true;
-  return recipe.dietaryTags.includes(dietary as DietaryTag);
+  const tags = recipe.dietaryTags;
+  if (!tags?.length) return true;
+  return tags.includes(dietary as DietaryTag);
 }
 
 export function applyRecipeFilters(

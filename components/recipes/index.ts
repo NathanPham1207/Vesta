@@ -1,2 +1,9 @@
-export { RecipeCard, type RecipeItem } from './RecipeCard';
+export {
+  RecipeCard,
+  type RecipeItem,
+  type RecipeIngredient,
+  type DietaryTag,
+} from './RecipeCard';
+export { RecipeDetailsModal } from './RecipeDetailsModal';
+export { CookingModeModal } from './CookingModeModal';
 export { DifficultyBadge } from './DifficultyBadge';

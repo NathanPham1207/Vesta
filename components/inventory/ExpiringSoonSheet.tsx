@@ -2,16 +2,16 @@ import { Search, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
+  FlatList,
   Modal,
   Pressable,
-  FlatList,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWindowDimensions } from 'react-native';
 
 import { InventoryItemCard } from '@/components/inventory/InventoryItemCard';
 import { EmptyState } from '@/components/ui/EmptyState';

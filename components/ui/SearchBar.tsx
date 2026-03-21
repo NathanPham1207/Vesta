@@ -6,6 +6,7 @@ import {
   StyleSheet,
   type ViewStyle,
 } from 'react-native';
+import { Search } from 'lucide-react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLORS } from '@/constants/colors';
 import { RADIUS } from '@/constants/radius';
@@ -17,14 +18,18 @@ const MINIMAL_BG = '#F1F5F9';
 const MINIMAL_ICON = '#94A3B8';
 const MINIMAL_PLACEHOLDER = '#94A3B8';
 
-export type SearchBarVariant = 'default' | 'minimal';
+const RECIPES_SEARCH_BG = '#F3F4F6';
+const RECIPES_PLACEHOLDER = '#9CA3AF';
+const RECIPES_SEARCH_ICON = '#9CA3AF';
+
+export type SearchBarVariant = 'default' | 'minimal' | 'recipes';
 
 interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
   wrapperStyle?: ViewStyle;
-  /** `minimal` = flat gray, no stroke, compact (home modals). */
+  /** `minimal` = flat gray, no stroke (modals). `recipes` = light gray search field on Recipes screen. */
   variant?: SearchBarVariant;
 }
 
@@ -36,16 +41,26 @@ export function SearchBar({
   variant = 'default',
 }: SearchBarProps) {
   const isMinimal = variant === 'minimal';
+  const isRecipes = variant === 'recipes';
 
   return (
     <View
       style={[
         styles.wrapper,
-        isMinimal ? styles.wrapperMinimal : styles.wrapperDefault,
+        isRecipes && styles.wrapperRecipes,
+        isMinimal && styles.wrapperMinimal,
+        !isMinimal && !isRecipes && styles.wrapperDefault,
         wrapperStyle,
       ]}
     >
-      {isMinimal ? (
+      {isRecipes ? (
+        <Search
+          size={19}
+          color={RECIPES_SEARCH_ICON}
+          strokeWidth={2}
+          style={styles.iconRecipes}
+        />
+      ) : isMinimal ? (
         <Ionicons
           name="search-outline"
           size={18}
@@ -60,9 +75,17 @@ export function SearchBar({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={
-          isMinimal ? MINIMAL_PLACEHOLDER : COLORS.subtext
+          isRecipes
+            ? RECIPES_PLACEHOLDER
+            : isMinimal
+              ? MINIMAL_PLACEHOLDER
+              : COLORS.subtext
         }
-        style={[styles.input, isMinimal && styles.inputMinimal]}
+        style={[
+          styles.input,
+          isMinimal && styles.inputMinimal,
+          isRecipes && styles.inputRecipes,
+        ]}
         returnKeyType="search"
       />
     </View>
@@ -90,6 +113,19 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     borderWidth: 0,
     minHeight: COMPACT_HEIGHT,
+  },
+  wrapperRecipes: {
+    backgroundColor: RECIPES_SEARCH_BG,
+    borderRadius: 14,
+    borderWidth: 0,
+    minHeight: 48,
+  },
+  iconRecipes: {
+    marginRight: 8,
+  },
+  inputRecipes: {
+    paddingVertical: 10,
+    fontSize: FONT_SIZE.body,
   },
   iconEmoji: {
     marginRight: SPACING.sm,

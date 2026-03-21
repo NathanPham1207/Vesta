@@ -1,10 +1,10 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '@/constants/colors';
+import type { InventoryItem, InventoryStatus } from '@/constants/mockInventoryItems';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
-import type { InventoryItem, InventoryStatus } from '@/constants/mockInventoryItems';
 import { Trash2 } from 'lucide-react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type InventoryItemCardProps = {
   item: InventoryItem;
