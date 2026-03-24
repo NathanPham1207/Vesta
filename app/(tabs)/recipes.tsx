@@ -3,7 +3,7 @@ import { RecipeCard } from '@/components/recipes/RecipeCard';
 import { CookingModeModal } from '@/components/recipes/CookingModeModal';
 import { RecipeDetailsModal } from '@/components/recipes/RecipeDetailsModal';
 import { SearchBar } from '@/components/ui/SearchBar';
-import { recipesScreenStyles } from './recipes.styles';
+import { recipesScreenStyles } from '@/components/recipes/recipes.styles';
 import { recipes } from '@/constants/mockData';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLORS } from '@/constants/colors';
