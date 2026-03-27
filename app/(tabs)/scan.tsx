@@ -4,108 +4,46 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { COLORS } from '@/constants/colors';
 import { SPACING } from '@/constants/spacing';
-import { saveInventory } from '@/services/auth/inventoryApi';
+import { type InventoryItem, saveInventory } from '@/services/auth/inventoryApi';
 import { scanReceipt } from '@/services/auth/scanApi';
-import {
-  calculateExpiryDate,
-  getDaysLeft,
-  getExpiryDays,
-  isExpiringSoon,
-} from '@/utils/expiry';
+import { getDaysLeft } from '@/utils/expiry';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type ScannedItem = {
+type ScannedReceiptItem = {
   name: string;
-  quantity: number | string;
-  price?: number | string;
+  category: string;
+  quantity: number;
+  expiryDate: string;
+  status?: 'fresh' | 'expiring soon' | 'expired';
 };
 
 type ScanResult = {
-  store?: string;
-  purchaseDate?: string;
-  items?: ScannedItem[];
+  success: boolean;
+  items: ScannedReceiptItem[];
 };
-
-type InventoryItem = {
-  name: string;
-  quantity: number;
-  category: string;
-  source: 'receipt';
-  purchaseDate: string;
-  createdAt: string;
-  expiryDate: string;
-  daysLeft: number;
-  price?: number;
-};
-
-function inferCategory(name: string): string {
-  const normalized = name.toLowerCase();
-
-  if (/(milk|eggs?|cheese|yogurt)/.test(normalized)) return 'Dairy';
-  if (/(bread|bun|cake)/.test(normalized)) return 'Bakery';
-  if (/(apple|banana|orange)/.test(normalized)) return 'Fruits';
-  if (/(juice|water|coke)/.test(normalized)) return 'Beverages';
-  if (/(chicken|beef|pork)/.test(normalized)) return 'Meat';
-
-  return 'Other';
-}
-
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function toInventoryItems(scanResult: ScanResult): InventoryItem[] {
-  const createdAt = new Date().toISOString();
-  const purchaseDate = scanResult.purchaseDate || createdAt;
-  const items = scanResult.items ?? [];
-
-  return items.map((item) => {
-    const category = inferCategory(item.name);
-    const expiryDays = getExpiryDays(item.name, category);
-    const expiryDate = calculateExpiryDate(purchaseDate, expiryDays);
-    const daysLeft = getDaysLeft(expiryDate);
-    const parsedPrice = toNumber(item.price, NaN);
-    const inventoryItem: InventoryItem = {
-      name: item.name,
-      quantity: Math.max(1, toNumber(item.quantity, 1)),
-      category,
-      source: 'receipt',
-      purchaseDate,
-      createdAt,
-      expiryDate,
-      daysLeft,
-    };
-
-    if (Number.isFinite(parsedPrice)) {
-      inventoryItem.price = parsedPrice;
-    }
-
-    return inventoryItem;
-  });
-}
 
 export default function ScanScreen() {
+  const router = useRouter();
   const [scanResult, setScanResult] = React.useState<ScanResult | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const previewItems = React.useMemo(
-    () => (scanResult ? toInventoryItems(scanResult) : []),
-    [scanResult],
-  );
+  const previewItems = scanResult?.items ?? [];
 
   const handleScan = async (asset: any) => {
     try {
       setLoading(true);
       const data = await scanReceipt(asset);
-      console.log("Scan result:", data);
+      if (!data?.success || !Array.isArray(data.items)) {
+        throw new Error('Invalid scan response');
+      }
       setScanResult(data);
     } catch (error) {
-      console.error("Scan error:", error);
-      Alert.alert("Error", "Failed to scan receipt.");
+      console.error('Scan error:', error);
+      Alert.alert('Error', 'Failed to scan receipt.');
     } finally {
       setLoading(false);
     }
@@ -117,13 +55,15 @@ export default function ScanScreen() {
       Alert.alert('Permission needed', 'Camera access is required to scan receipts.');
       return;
     }
+
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
     });
+
     if (!result.canceled) {
       const asset = result.assets[0];
-      console.log("Image asset:", asset);
+      console.log('Image asset:', asset);
       await handleScan(asset);
     }
   };
@@ -133,9 +73,10 @@ export default function ScanScreen() {
       mediaTypes: ['images'],
       allowsEditing: false,
     });
+
     if (!result.canceled) {
       const asset = result.assets[0];
-      console.log("Image asset:", asset);
+      console.log('Image asset:', asset);
       await handleScan(asset);
     }
   };
@@ -145,16 +86,33 @@ export default function ScanScreen() {
   };
 
   const confirmScan = async () => {
-    if (!scanResult?.items?.length) {
+    if (!previewItems.length) {
       Alert.alert('No Items', 'No scanned items available to save.');
       return;
     }
 
     try {
       setSaving(true);
-      await saveInventory(previewItems);
-      Alert.alert('Success', 'Items saved to inventory.');
+
+      const confirmedItems: InventoryItem[] = previewItems.map((item) => ({
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        expiryDate: item.expiryDate,
+      }));
+
+      await saveInventory(confirmedItems);
+
       setScanResult(null);
+
+      Alert.alert('Success', 'Items saved to inventory.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            router.replace('/');
+          },
+        },
+      ]);
     } catch (error) {
       console.error('Save inventory error:', error);
       Alert.alert('Error', 'Failed to save items to inventory.');
@@ -179,29 +137,26 @@ export default function ScanScreen() {
         <ScanActionCard
           onTakePhoto={takePhoto}
           onUploadFromGallery={uploadFromGallery}
-          
         />
-      {loading ? <Text style={styles.loadingText}>Scanning...</Text> : null}
+
+        {loading ? <Text style={styles.loadingText}>Scanning...</Text> : null}
 
         {scanResult ? (
           <>
             <View style={styles.scanResultCard}>
-              <Text>Store: {scanResult.store}</Text>
-              <Text>Date: {scanResult.purchaseDate}</Text>
-
               {previewItems.map((item, index) => (
                 <Text
                   key={index}
-                  style={isExpiringSoon(item.daysLeft) ? styles.expiringSoonText : undefined}
+                  style={item.status === 'expiring soon' ? styles.expiringSoonText : undefined}
                 >
-                  {item.name} - Qty: {item.quantity} - ${item.price ?? 0} ({item.daysLeft} days
-                  {' '}
-                  left
-                  {isExpiringSoon(item.daysLeft) ? ' ⚠️ Expiring Soon' : ''}
+                  {item.name} - Qty: {item.quantity} - {item.category} (
+                  {Math.max(0, getDaysLeft(item.expiryDate))} days left
+                  {item.status === 'expiring soon' ? ' ⚠️ Expiring Soon' : ''}
                   )
                 </Text>
               ))}
             </View>
+
             <AppButton
               title="Confirm"
               onPress={confirmScan}
@@ -210,6 +165,7 @@ export default function ScanScreen() {
             />
           </>
         ) : null}
+
         <View style={styles.spacer} />
         <ManualAddCard onAddItem={addItemManually} />
       </ScrollView>

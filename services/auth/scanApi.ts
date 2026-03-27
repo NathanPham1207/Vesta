@@ -1,9 +1,4 @@
-const BASE_URL = "https://taillessly-uncastled-lasonya.ngrok-free.dev";
-
-const COMMON_HEADERS = {
-  Accept: "application/json",
-  "ngrok-skip-browser-warning": "true",
-};
+import { BASE_URL, COMMON_HEADERS } from './apiConfig';
 
 export async function pingBackend() {
   const response = await fetch(`${BASE_URL}/`, {
@@ -25,7 +20,7 @@ export async function pingBackend() {
 export async function scanReceipt(asset: any) {
   const formData = new FormData();
 
-  formData.append("image", {
+  formData.append("receipt", {
     uri: asset.uri,
     name: asset.fileName || "receipt.jpg",
     type: asset.mimeType || "image/jpeg",
@@ -33,7 +28,6 @@ export async function scanReceipt(asset: any) {
 
   const response = await fetch(`${BASE_URL}/scan/receipt`, {
     method: "POST",
-    headers: COMMON_HEADERS,
     body: formData,
   });
 

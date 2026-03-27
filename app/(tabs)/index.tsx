@@ -1,18 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { AttentionItemsModal } from '@/components/home/AttentionItemsModal';
 import { CategoryDetailModal } from '@/components/home/CategoryDetailModal';
-import { FreshnessGuideCard } from '@/components/home/FreshnessGuideCard';
-import { ExpiringSoonCard } from '@/components/home/ExpiringSoonCard';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
-import { categories } from '@/constants/mockData';
-import {
-  INITIAL_INVENTORY_ITEMS,
-  type CategoryInventoryItem,
-  itemRequiresAttention,
-  toAttentionInventoryItem,
-} from '@/constants/homeInventory';
+import { ExpiringSoonCard } from '@/components/home/ExpiringSoonCard';
+import { FreshnessGuideCard } from '@/components/home/FreshnessGuideCard';
 import {
   CHROME_BAR_MIN_HEIGHT,
   CHROME_BAR_PADDING_BOTTOM,
@@ -21,14 +11,54 @@ import {
   chromeBarShadow,
 } from '@/constants/chromeBar';
 import { COLORS } from '@/constants/colors';
+import {
+  type CategoryInventoryItem,
+  itemRequiresAttention,
+  toAttentionInventoryItem,
+} from '@/constants/homeInventory';
+import { categories } from '@/constants/mockData';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import { deleteInventory, getInventory, type InventoryItem } from '@/services/auth/inventoryApi';
+import { getDaysLeft } from '@/utils/expiry';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+function categoryToId(category: string): string {
+  const normalized = category.trim().toLowerCase();
+  if (normalized === 'beverages') return '1';
+  if (normalized === 'dairy') return '2';
+  if (normalized === 'fruits') return '3';
+  if (normalized === 'meat') return '5';
+  if (normalized === 'vegetables') return '6';
+  return '4';
+}
+
+function statusToFreshness(item: InventoryItem, daysLeft: number): CategoryInventoryItem['status'] {
+  if (item.status === 'expired' || daysLeft < 0) return 'expired';
+  if (item.status === 'expiring soon' || daysLeft <= 5) return 'good';
+  return 'fresh';
+}
+
+function toCategoryInventoryItem(item: InventoryItem): CategoryInventoryItem {
+  const daysLeft = getDaysLeft(item.expiryDate);
+  const quantity = Number.isFinite(item.quantity) ? item.quantity : 1;
+  return {
+    id: item.id ?? `${item.name}-${item.expiryDate}`,
+    name: item.name,
+    categoryId: categoryToId(item.category),
+    quantityLabel: `${quantity} item${quantity === 1 ? '' : 's'}`,
+    daysLeft,
+    status: statusToFreshness(item, daysLeft),
+  };
+}
 
 export default function HomeScreen() {
-  // TODO: Replace local inventory with Firestore subscription / context.
-  const [inventoryItems, setInventoryItems] = useState<CategoryInventoryItem[]>(
-    () => [...INITIAL_INVENTORY_ITEMS],
-  );
+  const [inventoryItems, setInventoryItems] = useState<CategoryInventoryItem[]>([]);
+  const [loadingInventory, setLoadingInventory] = useState(false);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
 
   const [categoryModalId, setCategoryModalId] = useState<string | null>(null);
   const [attentionModalVisible, setAttentionModalVisible] = useState(false);
@@ -82,10 +112,35 @@ export default function HomeScreen() {
     [inventoryItems, categoryModalId],
   );
 
-  // TODO: Replace local item deletion with Firebase delete.
-  const deleteInventoryItem = useCallback((id: string) => {
-    setInventoryItems((prev) => prev.filter((i) => i.id !== id));
+  const loadInventory = useCallback(async () => {
+    try {
+      setLoadingInventory(true);
+      setInventoryError(null);
+      const items = await getInventory();
+      setInventoryItems(items.map(toCategoryInventoryItem));
+    } catch (error) {
+      console.error('Inventory load error:', error);
+      setInventoryError('Failed to load inventory.');
+    } finally {
+      setLoadingInventory(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadInventory();
+    }, [loadInventory])
+  );
+
+  const deleteInventoryItem = useCallback(async (id: string) => {
+    try {
+      await deleteInventory(id);
+      await loadInventory();
+    } catch (error) {
+      console.error('Delete inventory error:', error);
+      Alert.alert('Error', 'Failed to delete inventory item.');
+    }
+  }, [loadInventory]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -109,6 +164,15 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {loadingInventory ? <Text style={styles.messageText}>Loading inventory...</Text> : null}
+        {inventoryError ? (
+          <Pressable style={styles.retryButton} onPress={loadInventory}>
+            <Text style={styles.retryText}>{inventoryError} Tap to retry.</Text>
+          </Pressable>
+        ) : null}
+        {!loadingInventory && !inventoryError && inventoryItems.length === 0 ? (
+          <Text style={styles.messageText}>No inventory items yet.</Text>
+        ) : null}
         <FreshnessGuideCard />
         <View style={styles.spacer} />
         <ExpiringSoonCard
@@ -204,5 +268,16 @@ const styles = StyleSheet.create({
   },
   avatarIcon: {
     fontSize: 18,
+  },
+  messageText: {
+    color: COLORS.subtext,
+    marginBottom: SPACING.sm,
+  },
+  retryButton: {
+    marginBottom: SPACING.sm,
+  },
+  retryText: {
+    color: COLORS.danger,
+    fontWeight: FONT_WEIGHT.medium,
   },
 });
