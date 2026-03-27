@@ -1,12 +1,13 @@
+import { CookingModeModal } from '@/components/recipes/CookingModeModal';
 import type { RecipeItem } from '@/components/recipes/RecipeCard';
 import { RecipeCard } from '@/components/recipes/RecipeCard';
-import { CookingModeModal } from '@/components/recipes/CookingModeModal';
 import { RecipeDetailsModal } from '@/components/recipes/RecipeDetailsModal';
-import { SearchBar } from '@/components/ui/SearchBar';
 import { recipesScreenStyles } from '@/components/recipes/recipes.styles';
+import { SearchBar } from '@/components/ui/SearchBar';
+import { COLORS } from '@/constants/colors';
 import { recipes } from '@/constants/mockData';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { COLORS } from '@/constants/colors';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, ListRenderItem, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ const FILTER_OPTIONS = [
 ] as const;
 
 export default function RecipesScreen() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [filterId, setFilterId] = useState<string | null>('all');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -106,11 +108,10 @@ export default function RecipesScreen() {
         <View style={recipesScreenStyles.profileFixedLayer} pointerEvents="box-none">
           <Pressable
             style={recipesScreenStyles.profileBtn}
-            onPress={() => {}}
+            onPress={() => router.push('/profile')}
             accessibilityRole="button"
             accessibilityLabel="Profile"
-            hitSlop={8}
-          >
+            hitSlop={8}>
             <Ionicons name="person" size={22} color={COLORS.surface} />
           </Pressable>
         </View>
