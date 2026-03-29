@@ -36,7 +36,6 @@ export default function ProfileScreen() {
     bookmarkedRecipes,
     userRank,
     shoppingList,
-    toggleShoppingListItem,
   } = useInventory();
 
   const [showShoppingList, setShowShoppingList] = useState(false);
@@ -53,15 +52,16 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <TouchableOpacity 
-        style={styles.backButton} 
-        onPress={() => router.back()} // Sends the user back to the previous screen
-      >
-        <ChevronLeft size={28} color={COLORS.primary} />
-      </TouchableOpacity>
-
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
+        {/* Back Button - Now inside the ScrollView to move with the screen */}
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+        >
+          <ChevronLeft size={28} color={COLORS.primary} />
+        </TouchableOpacity>
+
         <SectionTitle 
           title="My Profile" 
           subtitle="Manage your kitchen rank and lists" 
@@ -152,14 +152,16 @@ function StatCard({ title, count, icon }: { title: string, count: number, icon: 
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background }, // 
-  container: { padding: SPACING.lg },
+  safe: { flex: 1, backgroundColor: COLORS.background },
+  container: { 
+    padding: SPACING.lg,
+    paddingTop: SPACING.md, // Reduced padding since the button is no longer absolute
+  },
   backButton: {
-    position: 'absolute',
-    top: 20, 
-    left: 10,
-    padding: SPACING.md,
-    zIndex: 10,
+    marginBottom: SPACING.sm, // Spacing between the arrow and the title
+    alignSelf: 'flex-start', // Keeps the button on the left
+    padding: SPACING.sm,
+    marginLeft: -SPACING.sm, // Offsets the padding to align perfectly with the title
   },
   card: {
     backgroundColor: 'white',
