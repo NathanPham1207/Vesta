@@ -54,14 +54,22 @@ function getFallbackRecipes(normalizedItems) {
     recipes.push({
       title: "Spinach Omelette",
       description: "A quick omelette that helps use up eggs and spinach.",
-      whyRecommended: "It uses ingredients commonly found in the pantry and is fast to cook.",
+      whyRecommended:
+        "It uses ingredients commonly found in the pantry and is fast to cook.",
+      difficulty: 1,
       ingredientsUsed: ["eggs", "spinach"],
       missingIngredients: hasCheese ? [] : ["cheese (optional)"],
       steps: [
-        "Beat the eggs in a bowl.",
-        "Cook spinach in a pan for 1 to 2 minutes.",
-        "Pour in the eggs and cook until set.",
-        "Add cheese if available and fold before serving.",
+        "Crack the eggs into a bowl.",
+        "Whisk the eggs until the yolks and whites are fully combined.",
+        "Heat a pan over medium heat.",
+        "Add a small amount of oil or butter to the pan if available.",
+        "Add the spinach and cook for 1 to 2 minutes until slightly softened.",
+        "Pour the eggs into the pan over the spinach.",
+        "Let the eggs cook until the bottom begins to set.",
+        "Gently fold the omelette in half.",
+        "Add cheese before folding if available.",
+        "Cook for another minute and serve warm.",
       ],
     });
   }
@@ -70,14 +78,24 @@ function getFallbackRecipes(normalizedItems) {
     recipes.push({
       title: "French Toast",
       description: "Simple French toast using bread, eggs, and milk.",
-      whyRecommended: "It uses multiple pantry staples and is easy for a student meal.",
+      whyRecommended:
+        "It uses multiple pantry staples and is easy for a student meal.",
+      difficulty: 2,
       ingredientsUsed: ["bread", "eggs", "milk"],
       missingIngredients: ["cinnamon or syrup (optional)"],
       steps: [
-        "Whisk eggs and milk together.",
-        "Dip bread slices into the mixture.",
-        "Cook each side on a pan until golden brown.",
-        "Serve warm.",
+        "Crack the eggs into a bowl.",
+        "Pour the milk into the bowl with the eggs.",
+        "Whisk until the mixture is smooth.",
+        "Heat a pan over medium heat.",
+        "Lightly grease the pan with butter or oil if available.",
+        "Dip one slice of bread into the egg mixture.",
+        "Turn it over so both sides are coated.",
+        "Place the bread into the hot pan.",
+        "Cook until the first side is golden brown.",
+        "Flip the bread and cook the other side until golden brown.",
+        "Repeat with the remaining bread slices.",
+        "Serve warm with cinnamon or syrup if available.",
       ],
     });
   }
@@ -86,14 +104,23 @@ function getFallbackRecipes(normalizedItems) {
     recipes.push({
       title: "Egg Fried Rice",
       description: "A fast fried rice using cooked rice and eggs.",
-      whyRecommended: "It is simple, flexible, and works well with leftover ingredients.",
+      whyRecommended:
+        "It is simple, flexible, and works well with leftover ingredients.",
+      difficulty: 2,
       ingredientsUsed: ["rice", "eggs"],
       missingIngredients: ["green onion", "soy sauce"],
       steps: [
-        "Scramble the eggs in a hot pan and set aside.",
-        "Add rice and stir-fry for a few minutes.",
-        "Mix the eggs back in.",
-        "Add soy sauce if available and serve.",
+        "Heat a pan over medium-high heat.",
+        "Add a small amount of oil if available.",
+        "Crack the eggs into the pan.",
+        "Scramble the eggs until fully cooked.",
+        "Remove the eggs and set them aside.",
+        "Add the cooked rice to the same pan.",
+        "Break up any clumps and stir-fry the rice for a few minutes.",
+        "Return the scrambled eggs to the pan.",
+        "Mix the eggs and rice together well.",
+        "Add soy sauce if available.",
+        "Stir for another minute and serve hot.",
       ],
     });
   }
@@ -102,14 +129,22 @@ function getFallbackRecipes(normalizedItems) {
     recipes.push({
       title: "Simple Pantry Bowl",
       description: "A flexible bowl meal using whatever ingredients are available.",
-      whyRecommended: "It is a safe fallback recipe when the AI service is unavailable.",
-      ingredientsUsed: normalizedItems.slice(0, 3).map((i) => i.name).filter(Boolean),
+      whyRecommended:
+        "It is a safe fallback recipe when the AI service is unavailable.",
+      difficulty: 1,
+      ingredientsUsed: normalizedItems
+        .slice(0, 3)
+        .map((i) => i.name)
+        .filter(Boolean),
       missingIngredients: [],
       steps: [
-        "Pick 2 or 3 pantry ingredients that work together.",
-        "Cook or warm them as needed.",
-        "Season simply with salt, pepper, or sauce if available.",
-        "Serve as a quick meal.",
+        "Choose 2 or 3 pantry ingredients that seem to go well together.",
+        "Wash, peel, or prepare them as needed.",
+        "Cook or warm each ingredient in the most suitable way you can.",
+        "Combine the cooked ingredients in a bowl or plate.",
+        "Add simple seasoning such as salt, pepper, or sauce if available.",
+        "Taste and adjust the seasoning if needed.",
+        "Serve immediately.",
       ],
     });
   }
@@ -125,17 +160,37 @@ function validateRecipeShape(parsed) {
   return parsed.recipes.every((recipe) => {
     return (
       typeof recipe.title === "string" &&
+      recipe.title.trim().length > 0 &&
       typeof recipe.description === "string" &&
+      recipe.description.trim().length > 0 &&
       typeof recipe.whyRecommended === "string" &&
+      recipe.whyRecommended.trim().length > 0 &&
+      Number.isInteger(recipe.difficulty) &&
+      recipe.difficulty >= 1 &&
+      recipe.difficulty <= 5 &&
       Array.isArray(recipe.ingredientsUsed) &&
+      recipe.ingredientsUsed.every(
+        (ingredient) =>
+          typeof ingredient === "string" && ingredient.trim().length > 0
+      ) &&
       Array.isArray(recipe.missingIngredients) &&
-      Array.isArray(recipe.steps)
+      recipe.missingIngredients.every(
+        (ingredient) =>
+          typeof ingredient === "string" && ingredient.trim().length > 0
+      ) &&
+      Array.isArray(recipe.steps) &&
+      recipe.steps.length > 0 &&
+      recipe.steps.every(
+        (step) => typeof step === "string" && step.trim().length > 0
+      )
     );
   });
 }
 
 async function generateRecipes(pantryItems) {
-  const normalizedItems = normalizePantryItems(pantryItems).filter((i) => i.name);
+  const normalizedItems = normalizePantryItems(pantryItems).filter(
+    (i) => i.name
+  );
 
   if (!normalizedItems.length) {
     return { recipes: [] };
@@ -156,7 +211,7 @@ async function generateRecipes(pantryItems) {
   }
 
   const expiringSoon = normalizedItems
-    .filter((i) => i.status === "expiring_soon")
+    .filter((i) => i.status === "expiring_soon" || i.status === "expiring soon")
     .map((i) => i.name);
 
   const prompt = `
@@ -167,11 +222,21 @@ ${JSON.stringify(normalizedItems, null, 2)}
 
 Instructions:
 - Recommend exactly 10 recipes.
-- Prioritize ingredients with status "expiring_soon".
-- Prefer easy recipes for college students.
+- Prioritize ingredients with status "expiring_soon" or "expiring soon".
+- Prefer easy and practical recipes for college students.
 - Prefer recipes that use many existing pantry items.
-- Keep recipes practical and realistic.
+- Keep recipes realistic and simple enough to cook at home.
 - If ingredients are missing, include them in missingIngredients.
+- Add a difficulty field as an integer from 1 to 5.
+- Difficulty meaning:
+  1 = very easy
+  2 = easy
+  3 = medium
+  4 = hard
+  5 = very hard
+- Steps should be clear, sequential, and easy to follow one by one in a mobile app.
+- Include as many steps as needed for the recipe.
+- Each step should describe one clear action or a very small grouped action.
 - Return JSON only.
 - Do not include markdown.
 - Do not include any extra explanation outside JSON.
@@ -183,9 +248,10 @@ Return this exact structure:
       "title": "string",
       "description": "string",
       "whyRecommended": "string",
+      "difficulty": 1,
       "ingredientsUsed": ["string"],
       "missingIngredients": ["string"],
-      "steps": ["string", "string", "string"]
+      "steps": ["string"]
     }
   ]
 }
@@ -218,7 +284,10 @@ Expiring soon ingredients: ${expiringSoon.join(", ")}
       cached: false,
     };
   } catch (error) {
-    console.error("OpenAI recipe generation failed. Using fallback.", error.message);
+    console.error(
+      "OpenAI recipe generation failed. Using fallback.",
+      error.message
+    );
 
     const fallback = getFallbackRecipes(normalizedItems);
 
