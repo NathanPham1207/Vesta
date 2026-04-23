@@ -1,20 +1,64 @@
 const {
-  deleteInventoryItem,
+  deleteInventoryLot,
+  getInventorySummary,
   getInventoryItems,
-  saveInventoryItems,
+  saveInventoryLots,
 } = require("../services/inventoryService");
+const { normalizeInventoryName } = require("../utils/normalization");
+
+const ALLOWED_CATEGORIES = new Set([
+  "Bakery",
+  "Dairy",
+  "Fruits",
+  "Vegetables",
+  "Frozen",
+  "Meat",
+  "Seafood",
+  "Beverages",
+  "Pantry",
+  "Snacks",
+  "Condiments",
+  "Misc",
+]);
+
+function isBlank(value) {
+  return value === undefined || value === null || String(value).trim() === "";
+}
+
+function isValidDateInput(value) {
+  if (value === undefined || value === null || value === "") {
+    return true;
+  }
+
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime());
+}
 
 function validateItem(item) {
-  const requiredFields = ["name", "category", "quantity", "expiryDate"];
+  if (!item || typeof item !== "object" || Array.isArray(item)) {
+    return "Item must be a valid object";
+  }
 
-  for (const field of requiredFields) {
-    if (
-      item[field] === undefined ||
-      item[field] === null ||
-      item[field] === ""
-    ) {
-      return `Missing required field: ${field}`;
-    }
+  if (isBlank(item.name)) {
+    return "Missing required field: name";
+  }
+
+  if (isBlank(item.category)) {
+    return "Missing required field: category";
+  }
+
+  if (isBlank(item.quantity)) {
+    return "Missing required field: quantity";
+  }
+
+  const trimmedName = String(item.name).trim();
+  if (!trimmedName) {
+    return "Invalid name: must not be empty";
+  }
+
+  const trimmedCategory = String(item.category).trim();
+  if (!ALLOWED_CATEGORIES.has(trimmedCategory)) {
+    return `Invalid category: must be one of ${Array.from(ALLOWED_CATEGORIES).join(", ")}`;
   }
 
   const quantity = Number(item.quantity);
@@ -22,45 +66,87 @@ function validateItem(item) {
     return "Invalid quantity: must be a number greater than 0";
   }
 
-  if (Number.isNaN(new Date(item.expiryDate).getTime())) {
+  if (!isValidDateInput(item.expiryDate)) {
     return "Invalid expiryDate: must be a valid date string";
+  }
+
+  if (!isValidDateInput(item.purchaseDate)) {
+    return "Invalid purchaseDate: must be a valid date string";
   }
 
   return null;
 }
 
-function calculateStatus(expiryDate) {
-  const today = new Date();
-  const expiry = new Date(expiryDate);
-
-  today.setHours(0, 0, 0, 0);
-  expiry.setHours(0, 0, 0, 0);
-
-  const diffTime = expiry.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    return "expired";
+function normalizeDateOnly(input) {
+  if (input === undefined || input === null || input === "") {
+    return null;
   }
 
-  if (diffDays <= 3) {
-    return "expiring soon";
+  const raw = String(input).trim();
+  if (!raw) {
+    return null;
   }
 
-  return "fresh";
+  const parts = raw.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts.map(Number);
+
+    if (
+      Number.isInteger(year) &&
+      Number.isInteger(month) &&
+      Number.isInteger(day)
+    ) {
+      const safeDate = new Date(year, month - 1, day);
+
+      if (!Number.isNaN(safeDate.getTime())) {
+        const yyyy = safeDate.getFullYear();
+        const mm = String(safeDate.getMonth() + 1).padStart(2, "0");
+        const dd = String(safeDate.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+      }
+    }
+  }
+
+  const parsedDate = new Date(raw);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  const yyyy = parsedDate.getFullYear();
+  const mm = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const dd = String(parsedDate.getDate()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-function normalizeItem(item) {
-  const normalizedExpiryDate = new Date(item.expiryDate)
-    .toISOString()
-    .split("T")[0];
+function normalizeOptionalString(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
+function normalizeLot(item) {
+  const normalizedName = String(item.name).trim();
+  const normalizedCategory = String(item.category).trim();
+  const normalizedExpiryDate = normalizeDateOnly(item.expiryDate);
+  const normalizedPurchaseDate = normalizeDateOnly(item.purchaseDate);
 
   return {
-    name: String(item.name).trim(),
-    category: String(item.category).trim(),
+    name: normalizedName,
+    normalizedName: item.normalizedName || normalizeInventoryName(normalizedName),
+    category: normalizedCategory,
     quantity: Number(item.quantity),
+    storage: normalizeOptionalString(item.storage),
+    unit: normalizeOptionalString(item.unit),
+    ruleKey: normalizeOptionalString(item.ruleKey),
+    purchaseDate: normalizedPurchaseDate,
     expiryDate: normalizedExpiryDate,
-    status: calculateStatus(normalizedExpiryDate),
+    status: null,
+    receiptId: normalizeOptionalString(item.receiptId),
+    source: normalizeOptionalString(item.source),
     createdAt: item.createdAt || new Date().toISOString(),
   };
 }
@@ -77,6 +163,13 @@ async function saveInventory(req, res) {
       });
     }
 
+    if (items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payload: items array must not be empty",
+      });
+    }
+
     for (let i = 0; i < items.length; i += 1) {
       const error = validateItem(items[i]);
       if (error) {
@@ -87,12 +180,12 @@ async function saveInventory(req, res) {
       }
     }
 
-    const normalizedItems = items.map(normalizeItem);
-    const savedItems = await saveInventoryItems(normalizedItems, userId);
+    const normalizedItems = items.map(normalizeLot);
+    const savedItems = await saveInventoryLots(normalizedItems, userId);
 
     return res.status(200).json({
       success: true,
-      message: "Items saved successfully",
+      message: "Inventory lots saved successfully",
       items: savedItems,
     });
   } catch (error) {
@@ -122,19 +215,52 @@ async function fetchInventory(req, res) {
   }
 }
 
+async function fetchInventorySummary(req, res) {
+  try {
+    const userId = req.params.userId || "test-user";
+    const items = await getInventorySummary(userId);
+
+    return res.status(200).json({
+      success: true,
+      items,
+    });
+  } catch (error) {
+    console.error("Failed to fetch inventory summary:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch inventory summary",
+    });
+  }
+}
+
 async function removeInventoryItem(req, res) {
   try {
     const userId = req.params.userId || "test-user";
     const { itemId } = req.params;
 
-    if (!itemId) {
+    if (!itemId || typeof itemId !== "string" || itemId.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: "Missing itemId",
+        message: "Invalid itemId",
       });
     }
 
-    const deleted = await deleteInventoryItem(userId, itemId);
+    if (itemId.includes("/")) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid itemId format",
+      });
+    }
+
+    const deleted = await deleteInventoryLot(userId, itemId);
+
+    if (!deleted.deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Inventory lot not found",
+        id: deleted.id,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -153,5 +279,6 @@ async function removeInventoryItem(req, res) {
 module.exports = {
   saveInventory,
   fetchInventory,
+  fetchInventorySummary,
   removeInventoryItem,
 };

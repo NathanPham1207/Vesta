@@ -1,15 +1,30 @@
-function calculateExpiryStatus(expiryDate) {
-  const target = new Date(`${expiryDate}T00:00:00`);
+function parseDateOnly(expiryDate) {
+  if (!expiryDate) return null;
 
-  if (Number.isNaN(target.getTime())) {
+  const [year, month, day] = String(expiryDate).split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function calculateExpiryStatus(expiryDate) {
+  const target = parseDateOnly(expiryDate);
+
+  if (!target || Number.isNaN(target.getTime())) {
     return { error: "Invalid expiryDate format" };
   }
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
 
   const msPerDay = 1000 * 60 * 60 * 24;
-  const daysUntilExpiry = Math.ceil((target.getTime() - now.getTime()) / msPerDay);
+  const daysUntilExpiry = Math.round(
+    (target.getTime() - now.getTime()) / msPerDay
+  );
 
   const EXPIRING_SOON_DAYS = 3;
 
