@@ -1,26 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Platform,
-  type LayoutChangeEvent,
-} from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLORS } from '@/constants/colors';
+import {
+  getFilterLabel,
+  type InventoryFreshnessFilter,
+} from '@/constants/homeInventory';
 import { RADIUS } from '@/constants/radius';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  type InventoryFreshnessFilter,
-  getFilterLabel,
-} from '@/constants/homeInventory';
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
-const FILTERS: InventoryFreshnessFilter[] = ['all', 'fresh', 'good', 'expired'];
+const FILTERS: InventoryFreshnessFilter[] = ['all', 'fresh', 'expiringSoon', 'expired'];
 
 const OPTION_ROW_HEIGHT = 44;
-
+const TRIGGER_MIN_WIDTH = 148;
+const TRIGGER_MIN_HEIGHT = 44;
 /** Same system as SearchBar minimal variant (popup reference). */
 const CONTROL_BG = '#F1F5F9';
 const ICON_MUTED = '#64748B';
@@ -46,14 +47,14 @@ export function StatusFilterDropdown({
   useEffect(() => {
     setOpen(false);
     onOpenChange?.(false);
-  }, [resetKey]);
+  }, [resetKey, onOpenChange]);
 
-  const onTriggerLayout = (e: LayoutChangeEvent) => {
+  const onTriggerLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     setTriggerSize((prev) =>
       prev.width === width && prev.height === height ? prev : { width, height },
     );
-  };
+  }, []);
 
   const toggle = () => {
     const next = !open;
@@ -143,9 +144,6 @@ export function StatusFilterDropdown({
     </View>
   );
 }
-
-const TRIGGER_MIN_WIDTH = 148;
-const TRIGGER_MIN_HEIGHT = 44;
 
 const styles = StyleSheet.create({
   anchor: {

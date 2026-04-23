@@ -1,37 +1,99 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Platform,
-} from 'react-native';
-import { SearchBar } from '@/components/ui/SearchBar';
 import type { CategoryItem } from '@/components/home/CategoryCard';
 import { ModalTrashButton } from '@/components/home/ModalTrashButton';
 import { StatusFilterDropdown } from '@/components/home/StatusFilterDropdown';
+import { SearchBar } from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
+import {
+  type InventoryFreshnessFilter
+} from '@/constants/homeInventory';
 import { RADIUS } from '@/constants/radius';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import type { InventoryItem } from '@/services/auth/inventoryApi';
+import { Image as ExpoImage } from 'expo-image';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  type CategoryInventoryItem,
-  type InventoryFreshnessFilter,
-  matchesFreshnessFilter,
-  formatCategoryItemDetail,
-  statusDotColor,
-} from '@/constants/homeInventory';
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatItemDetail(item: InventoryItem): string {
+  const daysLeft = typeof item.daysLeft === 'number' ? item.daysLeft : item.daysUntilExpiry ?? 0;
+  if (item.status === 'expired') {
+    const ago = Math.abs(daysLeft);
+    return `${item.quantity} item${item.quantity === 1 ? '' : 's'} • Expired ${ago} day${ago === 1 ? '' : 's'} ago`;
+  }
+  if (daysLeft === 0) return `${item.quantity} item${item.quantity === 1 ? '' : 's'} • Expires today`;
+  return `${item.quantity} item${item.quantity === 1 ? '' : 's'} • ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`;
+}
+
+function matchesFilter(item: InventoryItem, filter: InventoryFreshnessFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'expiringSoon') return item.status === 'expiring_soon';
+  return item.status === filter;
+}
+
+function resolveStatusDotColor(item: InventoryItem): string {
+  if (item.status === 'expired') return COLORS.danger;
+  if (item.status === 'fresh') return COLORS.success;
+  return COLORS.warning;
+}
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface CategoryDetailModalProps {
   visible: boolean;
   onClose: () => void;
   category: CategoryItem | null;
-  /** From shared Home inventory — single source of truth. */
-  items: CategoryInventoryItem[];
+  items: InventoryItem[];
   onDeleteItem: (id: string) => void;
 }
+
+// ─── Subcomponents ───────────────────────────────────────────────────────────
+
+function CategoryItemRow({
+  item,
+  onPress,
+  onDelete,
+}: {
+  item: InventoryItem;
+  onPress: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <Pressable style={styles.itemCard} onPress={onPress}>
+      {item.imageUrl ? (
+        <ExpoImage
+          source={item.imageUrl}
+          style={styles.itemImage}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          transition={200}
+        />
+      ) : (
+        <View style={styles.itemImagePlaceholder} />
+      )}
+      <View style={styles.itemMain}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        <View style={styles.itemMeta}>
+          <View style={[styles.dot, { backgroundColor: resolveStatusDotColor(item) }]} />
+          <Text style={styles.itemDetail}>{formatItemDetail(item)}</Text>
+        </View>
+      </View>
+      <ModalTrashButton onPress={onDelete} />
+    </Pressable>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export function CategoryDetailModal({
   visible,
@@ -41,55 +103,46 @@ export function CategoryDetailModal({
   onDeleteItem,
 }: CategoryDetailModalProps) {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] =
-    useState<InventoryFreshnessFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<InventoryFreshnessFilter>('all');
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
 
   useEffect(() => {
     if (visible && category) {
       setSearch('');
       setStatusFilter('all');
+      setSelectedItem(null);
     }
   }, [visible, category?.id]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const searchQuery = search.trim().toLowerCase();
     return allItems.filter((item) => {
-      if (!matchesFreshnessFilter(item.status, statusFilter)) return false;
-      if (!q) return true;
-      return item.name.toLowerCase().includes(q);
+      if (!matchesFilter(item, statusFilter)) return false;
+      if (!searchQuery) return true;
+      return item.name.toLowerCase().includes(searchQuery);
     });
   }, [allItems, search, statusFilter]);
 
-  const emptyMessage =
-    allItems.length === 0
-      ? 'No items in this category.'
-      : 'No items match your filters.';
-
   if (!category) return null;
 
-  const countLabel = `${category.count} item${category.count === 1 ? '' : 's'} in this category`;
+  const actualCount = allItems.length;
+  const countLabel = `${actualCount} item${actualCount === 1 ? '' : 's'} in this category`;
+  const emptyMessage = allItems.length === 0
+    ? 'No items in this category.'
+    : 'No items match your filters.';
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.sheet} pointerEvents="box-none">
           <View style={styles.card}>
-            <Pressable
-              style={styles.closeBtn}
-              onPress={onClose}
-              hitSlop={12}
-            >
+            <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={12}>
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
 
             <View style={styles.headerRow}>
-              <Text style={styles.categoryIcon}>{category.icon}</Text>
+              <Image source={category.icon} style={styles.categoryIcon} resizeMode="contain" />
               <Text style={styles.title}>{category.title}</Text>
             </View>
             <Text style={styles.subtitle}>{countLabel}</Text>
@@ -118,9 +171,10 @@ export function CategoryDetailModal({
             >
               {filtered.map((item) => (
                 <CategoryItemRow
-                  key={item.id}
+                  key={item.id ?? item.name}
                   item={item}
-                  onDelete={() => onDeleteItem(item.id)}
+                  onPress={() => setSelectedItem(item)}
+                  onDelete={() => onDeleteItem(item.id ?? '')}
                 />
               ))}
               {filtered.length === 0 ? (
@@ -130,35 +184,65 @@ export function CategoryDetailModal({
           </View>
         </View>
       </View>
+
+      {/* Item detail modal */}
+      <Modal
+        visible={selectedItem !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedItem(null)}
+      >
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedItem(null)} />
+          <View style={styles.sheet} pointerEvents="box-none">
+            <View style={styles.card}>
+              <Pressable style={styles.closeBtn} onPress={() => setSelectedItem(null)} hitSlop={12}>
+                <Text style={styles.closeText}>✕</Text>
+              </Pressable>
+
+              {selectedItem?.imageUrl ? (
+                <ExpoImage
+                  source={selectedItem.imageUrl}
+                  style={styles.detailImage}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={200}
+                />
+              ) : null}
+
+              <Text style={styles.title}>{selectedItem?.name}</Text>
+              <Text style={styles.subtitle}>
+                {selectedItem?.quantity} item{selectedItem?.quantity === 1 ? '' : 's'}
+                {selectedItem?.expiryDate
+                  ? ` • Expires ${selectedItem.expiryDate.slice(0, 10)}`
+                  : ''}
+              </Text>
+
+              <View style={styles.detailBlock}>
+                <DetailRow label="Category" value={selectedItem?.category ?? '—'} />
+                <DetailRow label="Status" value={selectedItem?.status ?? '—'} />
+                <DetailRow label="Purchase Date" value={selectedItem?.purchaseDate?.slice(0, 10) ?? 'N/A'} />
+                <DetailRow label="Expiry Date" value={selectedItem?.expiryDate?.slice(0, 10) ?? 'N/A'} />
+                <DetailRow label="Source" value={selectedItem?.source ?? 'N/A'} />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
 
-function CategoryItemRow({
-  item,
-  onDelete,
-}: {
-  item: CategoryInventoryItem;
-  onDelete: () => void;
-}) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.itemCard}>
-      <View style={styles.itemMain}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <View style={styles.itemMeta}>
-          <View
-            style={[
-              styles.dot,
-              { backgroundColor: statusDotColor(item.status) },
-            ]}
-          />
-          <Text style={styles.itemDetail}>{formatCategoryItemDetail(item)}</Text>
-        </View>
-      </View>
-      <ModalTrashButton onPress={onDelete} />
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   overlay: {
@@ -208,7 +292,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   categoryIcon: {
-    fontSize: 32,
+    width: 32,
+    height: 32,
   },
   title: {
     fontSize: FONT_SIZE.sectionTitle,
@@ -249,6 +334,21 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+    gap: SPACING.md,
+  },
+  itemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: COLORS.surface,
+    flexShrink: 0,
+  },
+  itemImagePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: COLORS.border,
+    flexShrink: 0,
   },
   itemMain: {
     flex: 1,
@@ -280,5 +380,35 @@ const styles = StyleSheet.create({
     color: COLORS.subtext,
     fontSize: FONT_SIZE.small,
     paddingVertical: SPACING.xl,
+  },
+  detailImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    alignSelf: 'center',
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.muted,
+  },
+  detailBlock: {
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+  },
+  detailLabel: {
+    fontSize: FONT_SIZE.small,
+    fontWeight: FONT_WEIGHT.semibold,
+    color: COLORS.subtext,
+  },
+  detailValue: {
+    fontSize: FONT_SIZE.small,
+    color: COLORS.text,
+    textTransform: 'capitalize',
   },
 });

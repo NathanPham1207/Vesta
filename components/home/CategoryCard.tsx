@@ -1,14 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { AppCard } from '@/components/ui/AppCard';
 import { COLORS } from '@/constants/colors';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import React from 'react';
+import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export interface CategoryItem {
   id: string;
   title: string;
-  icon: string;
+  icon: ImageSourcePropType;
   count: number;
 }
 
@@ -23,7 +23,13 @@ export function CategoryCard({ item, onPress }: CategoryCardProps) {
       <AppCard padding="md" style={styles.card}>
         <View style={styles.inner}>
           <View style={styles.top}>
-            <Text style={styles.icon}>{item.icon}</Text>
+            <View style={styles.iconWrapper}>
+              <Image
+                source={item.icon}
+                style={styles.icon}
+                resizeMode="cover"
+              />
+            </View>
             <Text style={styles.title} numberOfLines={1}>
               {item.title}
             </Text>
@@ -50,9 +56,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+    marginBottom: 14,
+  },
   icon: {
-    fontSize: 28,
-    marginBottom: SPACING.xs,
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: FONT_SIZE.body,

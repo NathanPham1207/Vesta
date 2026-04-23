@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, X } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -10,111 +10,85 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { InventoryItemCard } from '@/components/inventory/InventoryItemCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchBar } from '@/components/ui/SearchBar';
+import type { InventoryItem } from '@/services/auth/inventoryApi';
+import {
+  FILTER_OPTIONS,
+  type CategoryDetailFilter,
+} from '@/constants/homeInventory';
+import { useCategoryFilter } from '@/hooks/useCategoryFilter';
 import { COLORS } from '@/constants/colors';
-import type { InventoryItem } from '@/constants/mockInventoryItems';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
 
-export type CategoryDetailFilter = 'all' | 'fresh' | 'good' | 'expiringSoon' | 'expired';
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const SHEET_HEIGHT_RATIO = 0.72;
+const SHEET_BORDER_RADIUS = 18;
+const HANDLE_WIDTH = 54;
+const HANDLE_HEIGHT = 6;
+const FILTER_MENU_WIDTH = 180;
+const FILTER_MENU_TOP_OFFSET = 52;
+const ICON_WRAP_SIZE = 28;
+const ICON_BG_COLOR = 'rgba(234, 179, 8, 0.12)';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type CategoryDetailSheetProps = {
   visible: boolean;
   onClose: () => void;
   categoryId: string;
   categoryName: string;
-  // Optional: keep UI count consistent with where data comes from.
-  itemCount?: number;
-  // Optional: feed in combined inventory state (fresh/good + attention items).
   items?: InventoryItem[];
-  // Optional category icon string/emoji for the header.
+  itemCount?: number;
   categoryIcon?: string;
+  onDeleteItem?: (id: string) => void;
 };
 
-function filterLabel(filter: Exclude<CategoryDetailFilter, 'all'>) {
-  switch (filter) {
-    case 'fresh':
-      return 'Fresh';
-    case 'good':
-      return 'Good';
-    case 'expiringSoon':
-      return 'Expiring';
-    case 'expired':
-      return 'Expired';
-  }
-}
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function CategoryDetailSheet({
   visible,
   onClose,
   categoryId,
   categoryName,
-  itemCount,
   items = [],
+  itemCount,
   categoryIcon,
+  onDeleteItem,
 }: CategoryDetailSheetProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const sheetHeight = Math.round(windowHeight * 0.72);
+  const sheetHeight = Math.round(windowHeight * SHEET_HEIGHT_RATIO);
 
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<CategoryDetailFilter>('all');
-  const [displayItems, setDisplayItems] = useState<InventoryItem[]>(items);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+
+  const { search, setSearch, filter, setFilter, categoryItems, filtered } =
+    useCategoryFilter(items, categoryId);
 
   useEffect(() => {
     if (!visible) return;
-    setDisplayItems(items);
     setSearch('');
     setFilter('all');
     setIsFilterMenuOpen(false);
-  }, [visible, items]);
+  }, [visible, setSearch, setFilter]);
 
-  const categoryItems = useMemo(() => {
-    return displayItems.filter((it) => it.categoryId === categoryId);
-  }, [displayItems, categoryId]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return categoryItems.filter((it) => {
-      const matchesText = !q || it.name.toLowerCase().includes(q);
-      const matchesStatus = filter === 'all' ? true : it.status === filter;
-      return matchesText && matchesStatus;
-    });
-  }, [categoryItems, search, filter]);
-
-  const subtitleCount =
-    typeof itemCount === 'number' ? itemCount : categoryItems.length;
-
-  const filterOrder = useMemo<CategoryDetailFilter[]>(
-    () => ['all', 'fresh', 'good', 'expiringSoon', 'expired'],
-    [],
-  );
+  const displayCount = itemCount ?? categoryItems.length;
 
   const filterButtonLabel =
-    filter === 'all'
-      ? 'All Status'
-      : filterLabel(filter as Exclude<CategoryDetailFilter, 'all'>);
+    FILTER_OPTIONS.find((o) => o.id === filter)?.label ?? 'All';
 
-  const handleDelete = (id: string) => {
+  const handleDelete = useCallback((id: string) => {
     if (!id) return;
-    setDisplayItems((prev) => prev.filter((it) => it.id !== id));
-  };
+    onDeleteItem?.(id);
+  }, [onDeleteItem]);
 
-  const filterMenuOptions = useMemo(
-    () =>
-      filterOrder.map((opt) => ({
-        id: opt,
-        label:
-          opt === 'all'
-            ? 'All Status'
-            : filterLabel(opt as Exclude<CategoryDetailFilter, 'all'>),
-      })),
-    [filterOrder],
-  );
+  const handleSelectFilter = useCallback((opt: CategoryDetailFilter) => {
+    setFilter(opt);
+    setIsFilterMenuOpen(false);
+  }, [setFilter]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -122,14 +96,10 @@ export function CategoryDetailSheet({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
         <SafeAreaView style={styles.safeWrap} edges={['bottom']}>
-          <View
-            style={[
-              styles.sheetWrap,
-              { height: sheetHeight, paddingBottom: insets.bottom },
-            ]}
-          >
-            <View style={styles.sheetHandle} />
+          <View style={[styles.sheet, { height: sheetHeight, paddingBottom: insets.bottom }]}>
+            <View style={styles.handle} />
 
+            {/* Header */}
             <View style={styles.headerTop}>
               <View style={styles.titleRow}>
                 <View style={styles.iconWrap}>
@@ -137,10 +107,9 @@ export function CategoryDetailSheet({
                 </View>
                 <View>
                   <Text style={styles.title}>{categoryName}</Text>
-                  <Text style={styles.subtitle}>{subtitleCount} items in this category</Text>
+                  <Text style={styles.subtitle}>{displayCount} items in this category</Text>
                 </View>
               </View>
-
               <Pressable
                 onPress={onClose}
                 accessibilityRole="button"
@@ -151,6 +120,7 @@ export function CategoryDetailSheet({
               </Pressable>
             </View>
 
+            {/* Search + Filter */}
             <View style={styles.controlsRow}>
               <View style={styles.searchControl}>
                 <SearchBar
@@ -160,42 +130,36 @@ export function CategoryDetailSheet({
                 />
               </View>
 
-              <View style={styles.filterButtonAnchor}>
+              <View style={styles.filterAnchor}>
                 <Pressable
                   onPress={() => setIsFilterMenuOpen((v) => !v)}
                   style={({ pressed }) => [
                     styles.filterButton,
-                    pressed ? styles.filterButtonPressed : null,
+                    pressed && styles.filterButtonPressed,
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Filter status"
                 >
-                  <Text style={styles.filterButtonText}>
-                    {filterButtonLabel}
-                  </Text>
-                  {isFilterMenuOpen ? (
-                    <ChevronUp size={16} color={COLORS.subtext} />
-                  ) : (
-                    <ChevronDown size={16} color={COLORS.subtext} />
-                  )}
+                  <Text style={styles.filterButtonText}>{filterButtonLabel}</Text>
+                  {isFilterMenuOpen
+                    ? <ChevronUp size={16} color={COLORS.subtext} />
+                    : <ChevronDown size={16} color={COLORS.subtext} />
+                  }
                 </Pressable>
 
                 {isFilterMenuOpen ? (
                   <>
                     <Pressable
-                      style={styles.dropdownBackdrop}
+                      style={styles.filterBackdrop}
                       onPress={() => setIsFilterMenuOpen(false)}
                     />
-                    <View style={styles.filterMenuPanel}>
-                      {filterMenuOptions.map((opt) => {
+                    <View style={styles.filterMenu}>
+                      {FILTER_OPTIONS.map((opt) => {
                         const isSelected = filter === opt.id;
                         return (
                           <Pressable
                             key={opt.id}
-                            onPress={() => {
-                              setFilter(opt.id);
-                              setIsFilterMenuOpen(false);
-                            }}
+                            onPress={() => handleSelectFilter(opt.id)}
                             style={[
                               styles.filterMenuItem,
                               isSelected && styles.filterMenuItemSelected,
@@ -204,9 +168,7 @@ export function CategoryDetailSheet({
                             <Text
                               style={[
                                 styles.filterMenuItemText,
-                                isSelected
-                                  ? styles.filterMenuItemTextSelected
-                                  : null,
+                                isSelected && styles.filterMenuItemTextSelected,
                               ]}
                             >
                               {opt.label}
@@ -220,10 +182,11 @@ export function CategoryDetailSheet({
               </View>
             </View>
 
+            {/* List */}
             <FlatList
               style={styles.list}
               data={filtered}
-              keyExtractor={(it) => it.id}
+              keyExtractor={(it, index) => it.id ?? String(index)}
               renderItem={({ item }) => (
                 <InventoryItemCard
                   item={item}
@@ -247,6 +210,8 @@ export function CategoryDetailSheet({
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -256,15 +221,15 @@ const styles = StyleSheet.create({
   safeWrap: {
     width: '100%',
   },
-  sheetWrap: {
+  sheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     overflow: 'visible',
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    borderTopLeftRadius: SHEET_BORDER_RADIUS,
+    borderTopRightRadius: SHEET_BORDER_RADIUS,
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     shadowColor: '#000',
@@ -273,10 +238,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     elevation: 8,
   },
-  sheetHandle: {
+  handle: {
     alignSelf: 'center',
-    width: 54,
-    height: 6,
+    width: HANDLE_WIDTH,
+    height: HANDLE_HEIGHT,
     borderRadius: 999,
     backgroundColor: COLORS.border,
     marginBottom: SPACING.sm,
@@ -295,10 +260,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(234, 179, 8, 0.12)',
+    width: ICON_WRAP_SIZE,
+    height: ICON_WRAP_SIZE,
+    borderRadius: ICON_WRAP_SIZE / 2,
+    backgroundColor: ICON_BG_COLOR,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -316,7 +281,6 @@ const styles = StyleSheet.create({
     color: COLORS.subtext,
     fontWeight: FONT_WEIGHT.medium,
   },
-  // Compact Search + Filter row
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -327,7 +291,7 @@ const styles = StyleSheet.create({
   searchControl: {
     flex: 1,
   },
-  filterButtonAnchor: {
+  filterAnchor: {
     position: 'relative',
     zIndex: 10,
   },
@@ -352,18 +316,18 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: FONT_WEIGHT.medium,
   },
-  dropdownBackdrop: {
+  filterBackdrop: {
     position: 'absolute',
     left: -SPACING.lg,
     right: -SPACING.lg,
     top: -SPACING.md,
     bottom: -SPACING.lg,
   },
-  filterMenuPanel: {
+  filterMenu: {
     position: 'absolute',
-    top: 52,
+    top: FILTER_MENU_TOP_OFFSET,
     right: 0,
-    width: 180,
+    width: FILTER_MENU_WIDTH,
     backgroundColor: COLORS.surface,
     borderRadius: 14,
     borderWidth: 1,
@@ -392,14 +356,13 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: FONT_WEIGHT.semibold,
   },
-  listContent: {
-    paddingBottom: SPACING.xl,
-  },
   list: {
     flex: 1,
     minHeight: 0,
     zIndex: 0,
     elevation: 0,
   },
+  listContent: {
+    paddingBottom: SPACING.xl,
+  },
 });
-

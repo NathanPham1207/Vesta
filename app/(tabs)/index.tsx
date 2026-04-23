@@ -3,6 +3,7 @@ import { CategoryDetailModal } from '@/components/home/CategoryDetailModal';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
 import { ExpiringSoonCard } from '@/components/home/ExpiringSoonCard';
 import { FreshnessGuideCard } from '@/components/home/FreshnessGuideCard';
+import { CATEGORIES } from '@/constants/categories';
 import {
   CHROME_BAR_MIN_HEIGHT,
   CHROME_BAR_PADDING_BOTTOM,
@@ -16,49 +17,28 @@ import {
   itemRequiresAttention,
   toAttentionInventoryItem,
 } from '@/constants/homeInventory';
-import { categories } from '@/constants/mockData';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
 import { deleteInventory, getInventory, type InventoryItem } from '@/services/auth/inventoryApi';
-import { getDaysLeft } from '@/utils/expiry';
+import {
+  categoryToId,
+  getPriorityLotToDelete,
+  groupInventoryItems
+} from '@/utils/inventoryGrouping';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function categoryToId(category: string): string {
-  const normalized = category.trim().toLowerCase();
-  if (normalized === 'beverages') return '1';
-  if (normalized === 'dairy') return '2';
-  if (normalized === 'fruits') return '3';
-  if (normalized === 'meat') return '5';
-  if (normalized === 'vegetables') return '6';
-  return '4';
-}
-
-function statusToFreshness(item: InventoryItem, daysLeft: number): CategoryInventoryItem['status'] {
-  if (item.status === 'expired' || daysLeft < 0) return 'expired';
-  if (item.status === 'expiring soon' || daysLeft <= 5) return 'good';
-  return 'fresh';
-}
-
-function toCategoryInventoryItem(item: InventoryItem): CategoryInventoryItem {
-  const daysLeft = getDaysLeft(item.expiryDate);
-  const quantity = Number.isFinite(item.quantity) ? item.quantity : 1;
-  return {
-    id: item.id ?? `${item.name}-${item.expiryDate}`,
-    name: item.name,
-    categoryId: categoryToId(item.category),
-    quantityLabel: `${quantity} item${quantity === 1 ? '' : 's'}`,
-    daysLeft,
-    status: statusToFreshness(item, daysLeft),
-  };
-}
-
 export default function HomeScreen() {
-  const [inventoryItems, setInventoryItems] = useState<CategoryInventoryItem[]>([]);
+  const [rawInventoryLots, setRawInventoryLots] = useState<InventoryItem[]>([]);
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
+  const inventoryItems = useMemo<CategoryInventoryItem[]>(
+    () => groupInventoryItems(rawInventoryLots),
+    [rawInventoryLots],
+  );
+
 
   const [categoryModalId, setCategoryModalId] = useState<string | null>(null);
   const [attentionModalVisible, setAttentionModalVisible] = useState(false);
@@ -73,7 +53,7 @@ export default function HomeScreen() {
 
   const categoriesWithCounts = useMemo(
     () =>
-      categories.map((c) => ({
+      CATEGORIES.map((c) => ({
         ...c,
         count: countsByCategory[c.id] ?? 0,
       })),
@@ -90,7 +70,7 @@ export default function HomeScreen() {
   const attentionDisplayItems = useMemo(
     () =>
       attentionSourceItems.map((it) => {
-        const cat = categories.find((c) => c.id === it.categoryId);
+        const cat = CATEGORIES.find((c) => c.id === it.categoryId);
         return toAttentionInventoryItem(it, cat?.title ?? '');
       }),
     [attentionSourceItems],
@@ -107,9 +87,11 @@ export default function HomeScreen() {
   const categoryModalItems = useMemo(
     () =>
       categoryModalId
-        ? inventoryItems.filter((i) => i.categoryId === categoryModalId)
+        ? rawInventoryLots.filter(
+            (lot) => categoryToId(lot.category) === categoryModalId,
+          )
         : [],
-    [inventoryItems, categoryModalId],
+    [rawInventoryLots, categoryModalId],
   );
 
   const loadInventory = useCallback(async () => {
@@ -117,7 +99,7 @@ export default function HomeScreen() {
       setLoadingInventory(true);
       setInventoryError(null);
       const items = await getInventory();
-      setInventoryItems(items.map(toCategoryInventoryItem));
+      setRawInventoryLots(items);
     } catch (error) {
       console.error('Inventory load error:', error);
       setInventoryError('Failed to load inventory.');
@@ -132,15 +114,41 @@ export default function HomeScreen() {
     }, [loadInventory])
   );
 
-  const deleteInventoryItem = useCallback(async (id: string) => {
+  const deleteRawInventoryItem = useCallback(async (itemId: string) => {
+    if (!itemId) return;
     try {
-      await deleteInventory(id);
-      await loadInventory();
+      await deleteInventory(itemId);
+      // Xóa khỏi local state ngay, không cần refetch
+      setRawInventoryLots((prev) => prev.filter((lot) => lot.id !== itemId));
     } catch (error) {
-      console.error('Delete inventory error:', error);
+      console.error('Delete error:', error);
       Alert.alert('Error', 'Failed to delete inventory item.');
     }
-  }, [loadInventory]);
+  }, []);
+  
+
+  const deleteAttentionItem = useCallback(
+    async (groupId: string) => {
+      const group = inventoryItems.find((item) => item.id === groupId);
+      if (!group) return;
+
+      // Business rule: Expiring Soon delete removes one underlying lot, not the entire grouped row.
+      const targetLot = getPriorityLotToDelete(group.lots);
+      if (!targetLot?.id) {
+        Alert.alert('Error', 'Unable to resolve a lot to delete.');
+        return;
+      }
+
+      try {
+        await deleteInventory(targetLot.id);
+        await loadInventory();
+      } catch (error) {
+        console.error('Delete attention lot error:', error);
+        Alert.alert('Error', 'Failed to delete inventory item.');
+      }
+    },
+    [inventoryItems, loadInventory],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -190,7 +198,7 @@ export default function HomeScreen() {
         visible={selectedCategory !== null}
         category={selectedCategory}
         items={categoryModalItems}
-        onDeleteItem={deleteInventoryItem}
+        onDeleteItem={deleteRawInventoryItem}
         onClose={() => setCategoryModalId(null)}
       />
       <AttentionItemsModal
@@ -198,7 +206,7 @@ export default function HomeScreen() {
         onClose={() => setAttentionModalVisible(false)}
         attentionItems={attentionDisplayItems}
         attentionCount={attentionCount}
-        onDeleteItem={deleteInventoryItem}
+        onDeleteItem={deleteAttentionItem}
       />
     </SafeAreaView>
   );

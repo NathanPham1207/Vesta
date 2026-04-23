@@ -4,12 +4,13 @@ import { CookingModeModal } from '@/components/recipes/CookingModeModal';
 import { RecipeDetailsModal } from '@/components/recipes/RecipeDetailsModal';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { recipesScreenStyles } from '@/components/recipes/recipes.styles';
-import { recipes } from '@/constants/mockData';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLORS } from '@/constants/colors';
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, ListRenderItem, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getRecipes } from '@/services/data/recipesApi';
+import { useFocusEffect } from 'expo-router';
 
 const FILTER_OPTIONS = [
   { id: 'all', label: 'All' },
@@ -22,11 +23,34 @@ export default function RecipesScreen() {
   const [search, setSearch] = useState('');
   const [filterId, setFilterId] = useState<string | null>('all');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [recipes, setRecipes] = useState<RecipeItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeItem | null>(null);
   const [isRecipeModalVisible, setIsRecipeModalVisible] = useState(false);
   const [isCookingModeVisible, setIsCookingModeVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+
+  const loadRecipes = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const result = await getRecipes();
+      setRecipes(result);
+    } catch (error) {
+      console.error('Failed to load recipes:', error);
+      setLoadError('Failed to load recipes.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRecipes();
+    }, [loadRecipes]),
+  );
 
   const filtered = useMemo(() => {
     let list = recipes as RecipeItem[];
@@ -43,7 +67,7 @@ export default function RecipesScreen() {
       list = list.filter((r) => r.difficulty === difficulty);
     }
     return list;
-  }, [search, filterId]);
+  }, [search, filterId, recipes]);
 
   const selectFilter = useCallback((id: string) => {
     setFilterId(id);
@@ -200,7 +224,9 @@ export default function RecipesScreen() {
             removeClippedSubviews={Platform.OS === 'android' ? false : undefined}
             ListEmptyComponent={
               <Text style={recipesScreenStyles.emptyText}>
-                No recipes match your search or filters.
+                {loading
+                  ? 'Loading recipes...'
+                  : loadError ?? 'No recipes match your search or filters.'}
               </Text>
             }
           />

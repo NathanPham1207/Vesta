@@ -17,10 +17,7 @@ import { InventoryItemCard } from '@/components/inventory/InventoryItemCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { COLORS } from '@/constants/colors';
-import type {
-  InventoryItem
-} from '@/constants/mockInventoryItems';
-import { inventoryItems as inventoryItemsMock } from '@/constants/mockInventoryItems';
+import type { InventoryItem } from '@/services/auth/inventoryApi';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
 import { Info } from 'lucide-react-native';
@@ -38,7 +35,7 @@ type ExpiringSoonSheetProps = {
 export function ExpiringSoonSheet({
   visible,
   onClose,
-  items = inventoryItemsMock,
+  items = [],
   onItemsChange,
 }: ExpiringSoonSheetProps) {
   const insets = useSafeAreaInsets();
@@ -89,12 +86,19 @@ export function ExpiringSoonSheet({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+
+    const normalizeStatus = (status: InventoryItem['status']) => {
+      if (status === 'expiring_soon') return 'expiringSoon';
+      if (status === 'expired') return 'expired';
+      return 'fresh';
+    };
+
     return displayItems.filter((it) => {
       const matchesText = !q || it.name.toLowerCase().includes(q);
 
       let matchesStatus = true;
-      if (filter === 'expired') matchesStatus = it.status === 'expired';
-      if (filter === 'expiringSoon') matchesStatus = it.status === 'expiringSoon';
+      if (filter === 'expired') matchesStatus = normalizeStatus(it.status) === 'expired';
+      if (filter === 'expiringSoon') matchesStatus = normalizeStatus(it.status) === 'expiringSoon';
 
       return matchesText && matchesStatus;
     });
@@ -234,7 +238,7 @@ export function ExpiringSoonSheet({
             <View style={styles.list}>
               <FlatList
                 data={filtered}
-                keyExtractor={(it) => it.id}
+                keyExtractor={(it, index) => it.id ?? String(index)}
                 renderItem={({ item }) => (
                   <InventoryItemCard item={item} onDelete={handleDelete} />
                 )}

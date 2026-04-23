@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { AppCard } from '@/components/ui/AppCard';
 import { COLORS } from '@/constants/colors';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export interface ReceiptItem {
   id: string;
@@ -19,16 +19,12 @@ interface ReceiptHistoryCardProps {
 }
 
 function formatDate(dateStr: string) {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
+  const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 export function ReceiptHistoryCard({ receipt, onPress }: ReceiptHistoryCardProps) {

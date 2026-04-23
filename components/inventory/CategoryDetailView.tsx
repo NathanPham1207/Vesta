@@ -1,78 +1,43 @@
-import React, { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { SearchBar } from '@/components/ui/SearchBar';
-import { FilterBar } from '@/components/ui/FilterBar';
+import { InventoryItemCard } from '@/components/inventory/InventoryItemCard';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type {
-  InventoryItem,
-  InventoryStatus,
-} from '@/constants/mockInventoryItems';
-import { inventoryItems } from '@/constants/mockInventoryItems';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SearchBar } from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
+import { FILTER_OPTIONS, type CategoryDetailFilter } from '@/constants/homeInventory';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
-import { InventoryItemCard } from '@/components/inventory/InventoryItemCard';
+import { useCategoryFilter } from '@/hooks/useCategoryFilter';
+import type { InventoryItem } from '@/services/auth/inventoryApi';
+import React from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 
-export type CategoryDetailStatusFilter =
-  | 'all'
-  | 'fresh'
-  | 'good'
-  | 'expiringSoon'
-  | 'expired';
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-function statusLabel(filter: Exclude<CategoryDetailStatusFilter, 'all'>) {
-  if (filter === 'fresh') return 'Fresh';
-  if (filter === 'good') return 'Good';
-  if (filter === 'expiringSoon') return 'Expiring';
-  return 'Expired';
-}
+type CategoryDetailViewProps = {
+  categoryId: string;
+  categoryName: string;
+  items: InventoryItem[];
+  itemCount?: number;
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function CategoryDetailView({
   categoryId,
   categoryName,
+  items,
   itemCount,
-}: {
-  categoryId: string;
-  categoryName: string;
-  itemCount?: number;
-}) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] =
-    useState<CategoryDetailStatusFilter>('all');
+}: CategoryDetailViewProps) {
+  const { search, setSearch, filter, setFilter, categoryItems, filtered } =
+    useCategoryFilter(items, categoryId);
 
-  const categoryItems = useMemo(() => {
-    return inventoryItems.filter((it) => it.categoryId === categoryId);
-  }, [categoryId]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return categoryItems.filter((it) => {
-      const matchesText = !q || it.name.toLowerCase().includes(q);
-      const matchesStatus =
-        filter === 'all' ? true : it.status === filter;
-      return matchesText && matchesStatus;
-    });
-  }, [categoryItems, search, filter]);
-
-  const filterOptions = useMemo(
-    () =>
-      ([
-        { id: 'all', label: 'All' },
-        { id: 'fresh', label: statusLabel('fresh') },
-        { id: 'good', label: statusLabel('good') },
-        { id: 'expiringSoon', label: statusLabel('expiringSoon') },
-        { id: 'expired', label: statusLabel('expired') },
-      ] as const),
-    [],
-  );
+  const displayCount = itemCount ?? categoryItems.length;
 
   return (
-    <View style={styles.safe}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{categoryName}</Text>
-        <Text style={styles.subtitle}>
-          {typeof itemCount === 'number' ? itemCount : categoryItems.length} items in this category
-        </Text>
+        <Text style={styles.subtitle}>{displayCount} items in this category</Text>
       </View>
 
       <View style={styles.searchWrap}>
@@ -85,15 +50,15 @@ export function CategoryDetailView({
 
       <View style={styles.filterWrap}>
         <FilterBar
-          options={filterOptions as unknown as { id: string; label: string }[]}
+          options={FILTER_OPTIONS}
           selectedId={filter}
-          onSelect={(id) => setFilter(id as CategoryDetailStatusFilter)}
+          onSelect={(id) => setFilter(id as CategoryDetailFilter)}
         />
       </View>
 
       <FlatList
         data={filtered}
-        keyExtractor={(it) => it.id}
+        keyExtractor={(it, index) => it.id ?? String(index)}
         renderItem={({ item }) => (
           <InventoryItemCard item={item} mode="category" />
         )}
@@ -110,8 +75,10 @@ export function CategoryDetailView({
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  safe: {
+  container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
@@ -144,4 +111,3 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxxl,
   },
 });
-
