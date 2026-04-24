@@ -1,18 +1,18 @@
-import { AppButton } from '@/components/ui/AppButton';
-import { AppCard } from '@/components/ui/AppCard';
-import { AppInput } from '@/components/ui/AppInput';
-import { AUTH_ROUTES } from '@/constants/authRoutes';
-import { COLORS } from '@/constants/colors';
-import { RADIUS } from '@/constants/radius';
-import { SPACING } from '@/constants/spacing';
-import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
-import { useAuth } from '@/contexts/AuthContext';
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { AppInput } from "@/components/ui/AppInput";
+import { AUTH_ROUTES } from "@/constants/authRoutes";
+import { COLORS } from "@/constants/colors";
+import { RADIUS } from "@/constants/radius";
+import { SPACING } from "@/constants/spacing";
+import { FONT_SIZE, FONT_WEIGHT } from "@/constants/typography";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   getEmailValidationError,
   isValidEmailFormat,
-} from '@/utils/validation/email';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
+} from "@/utils/validation/email";
+import { useRouter } from "expo-router";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -25,18 +25,18 @@ import {
   TextInput,
   View,
   type TextInputProps,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const PASSWORD_REQUIRED = 'Password is required.';
+const PASSWORD_REQUIRED = "Password is required.";
 
 type PasswordFieldProps = {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
   error?: string;
-  onBlur?: TextInputProps['onBlur'];
-} & Pick<TextInputProps, 'returnKeyType' | 'onSubmitEditing' | 'blurOnSubmit'>;
+  onBlur?: TextInputProps["onBlur"];
+} & Pick<TextInputProps, "returnKeyType" | "onSubmitEditing" | "blurOnSubmit">;
 
 const PasswordField = React.forwardRef<TextInput, PasswordFieldProps>(
   function PasswordField(
@@ -77,7 +77,7 @@ const PasswordField = React.forwardRef<TextInput, PasswordFieldProps>(
           onPress={() => setVisible((v) => !v)}
           hitSlop={12}
         >
-          <Text style={styles.eyeIcon}>{visible ? '🙈' : '👁'}</Text>
+          <Text style={styles.eyeIcon}>{visible ? "🙈" : "👁"}</Text>
         </Pressable>
       </View>
     );
@@ -125,13 +125,13 @@ export default function LoginScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [touched, setTouched] = useState({ email: false, password: false });
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
 
   const emailRef = useRef(email);
   const passwordRef = useRef(password);
@@ -168,7 +168,7 @@ export default function LoginScreen() {
       return;
     }
 
-    setFormError('');
+    setFormError("");
     setTouched({ email: true, password: true });
 
     const currentEmail = emailRef.current;
@@ -188,40 +188,40 @@ export default function LoginScreen() {
         setFormError(result.message);
       }
     } catch {
-      setFormError('Something went wrong.');
+      setFormError("Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogle = async () => {
-    setFormError('');
+    setFormError("");
     setGoogleLoading(true);
     try {
       // TODO: Replace with Firebase Google provider
       await new Promise((r) => setTimeout(r, 900));
-      setFormError('Google sign-in is not connected yet.');
+      setFormError("Google sign-in is not connected yet.");
     } finally {
       setGoogleLoading(false);
     }
   };
 
   const handleApple = async () => {
-    setFormError('');
+    setFormError("");
     setAppleLoading(true);
     try {
       // TODO: Replace with Firebase Apple provider
       await new Promise((r) => setTimeout(r, 900));
-      setFormError('Apple sign-in is not connected yet.');
+      setFormError("Apple sign-in is not connected yet.");
     } finally {
       setAppleLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboard}
       >
         <ScrollView
@@ -232,7 +232,7 @@ export default function LoginScreen() {
           <View style={styles.headerBlock}>
             <View style={styles.brandRow}>
               <Image
-                source={require('../../assets/images/logo_vesta_clean.png')}
+                source={require("../../assets/images/logo_vesta_clean.png")}
                 style={styles.brandLogo}
               />
               <Text style={styles.brandName}>Vesta</Text>
@@ -293,8 +293,8 @@ export default function LoginScreen() {
               hitSlop={12}
               style={({ pressed }) => [
                 styles.forgotPressable,
-                Platform.OS === 'web' && { cursor: 'pointer' as const },
-                pressed && Platform.OS === 'web' && { opacity: 0.85 },
+                Platform.OS === "web" && { cursor: "pointer" as const },
+                pressed && Platform.OS === "web" && { opacity: 0.85 },
               ]}
             >
               <Text style={styles.forgotLink}>Forgot password?</Text>
@@ -308,12 +308,6 @@ export default function LoginScreen() {
               style={styles.signInButton}
               textStyle={styles.signInButtonText}
             />
-
-            <View style={styles.demoBox}>
-              <Text style={styles.demoHeader}>Demo Credentials:</Text>
-              <Text style={styles.demoLine}>Email: demo@vesta.com</Text>
-              <Text style={styles.demoLine}>Password: demo123</Text>
-            </View>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -342,13 +336,11 @@ export default function LoginScreen() {
               onPress={() => router.push(AUTH_ROUTES.signup)}
               style={({ pressed }) => [
                 styles.signUpRow,
-                Platform.OS === 'web' && { cursor: 'pointer' as const },
-                pressed && Platform.OS === 'web' && { opacity: 0.85 },
+                Platform.OS === "web" && { cursor: "pointer" as const },
+                pressed && Platform.OS === "web" && { opacity: 0.85 },
               ]}
             >
-              <Text style={styles.footerMuted}>
-                Don't have an account?{' '}
-              </Text>
+              <Text style={styles.footerMuted}>Don't have an account? </Text>
               <Text style={styles.footerLink}>Sign up</Text>
             </Pressable>
           </AppCard>
@@ -368,24 +360,24 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: SPACING.xl,
     paddingBottom: SPACING.xxxl,
   },
   headerBlock: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: SPACING.xxl,
   },
   brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: SPACING.sm,
   },
   brandLogo: {
     width: 52,
     height: 52,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   brandName: {
     marginLeft: SPACING.sm,
@@ -396,13 +388,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: FONT_SIZE.body,
     color: COLORS.subtext,
-    textAlign: 'center',
+    textAlign: "center",
   },
   card: {
-    width: '100%',
+    width: "100%",
   },
   banner: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: "#FEE2E2",
     borderRadius: 10,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
@@ -410,7 +402,7 @@ const styles = StyleSheet.create({
   bannerText: {
     fontSize: FONT_SIZE.small,
     color: COLORS.danger,
-    textAlign: 'center',
+    textAlign: "center",
   },
   cardTitle: {
     fontSize: FONT_SIZE.sectionTitle,
@@ -428,10 +420,10 @@ const styles = StyleSheet.create({
     paddingRight: 44,
   },
   passwordWrapper: {
-    position: 'relative',
+    position: "relative",
   },
   eyeButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 12,
     top: 38,
     paddingVertical: 4,
@@ -442,7 +434,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   forgotPressable: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     marginBottom: SPACING.lg,
     marginTop: -SPACING.xs,
   },
@@ -451,7 +443,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   signInButton: {
-    width: '100%',
+    width: "100%",
     marginTop: SPACING.sm,
   },
   signInButtonText: {
@@ -460,7 +452,7 @@ const styles = StyleSheet.create({
   demoBox: {
     marginTop: SPACING.lg,
     padding: SPACING.md,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: "#DBEAFE",
     borderRadius: 10,
   },
   demoHeader: {
@@ -475,8 +467,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: SPACING.xl,
   },
   dividerLine: {
@@ -490,7 +482,7 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
   },
   socialRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.md,
   },
   socialButton: {
@@ -500,8 +492,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingVertical: SPACING.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: 48,
   },
   socialButtonPressed: {
@@ -511,13 +503,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   socialInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   socialIconWrap: {
     width: 22,
-    alignItems: 'center',
+    alignItems: "center",
     marginRight: SPACING.sm,
   },
   socialIcon: {
@@ -532,10 +524,10 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   signUpRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: SPACING.xxl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   footerMuted: {
     fontSize: FONT_SIZE.body,

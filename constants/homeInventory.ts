@@ -1,15 +1,15 @@
-import { COLORS } from '@/constants/colors';
+import { COLORS } from "@/constants/colors";
 
-export type InventoryFreshnessStatus = 'fresh' | 'expiringSoon' | 'expired';
+export type InventoryFreshnessStatus = "fresh" | "expiringSoon" | "expired";
 
-export type InventoryFreshnessFilter = 'all' | InventoryFreshnessStatus;
+export type InventoryFreshnessFilter = "all" | InventoryFreshnessStatus;
 
 export type CategoryDetailFilter = InventoryFreshnessFilter;
 const FILTER_LABELS: Record<InventoryFreshnessFilter, string> = {
-  all: 'All Status',
-  fresh: 'Fresh',
-  expiringSoon: 'Expiring Soon',
-  expired: 'Expired',
+  all: "All Status",
+  fresh: "Fresh",
+  expiringSoon: "Expiring Soon",
+  expired: "Expired",
 };
 
 export function getFilterLabel(filter: InventoryFreshnessFilter): string {
@@ -18,10 +18,10 @@ export function getFilterLabel(filter: InventoryFreshnessFilter): string {
 
 // Sau đó mới đến FILTER_OPTIONS
 export const FILTER_ORDER: CategoryDetailFilter[] = [
-  'all',
-  'fresh',
-  'expiringSoon',
-  'expired',
+  "all",
+  "fresh",
+  "expiringSoon",
+  "expired",
 ];
 
 export const FILTER_OPTIONS = FILTER_ORDER.map((id) => ({
@@ -37,7 +37,7 @@ export interface InventoryLotItem {
   quantity: number;
   expiryDate: string;
   daysUntilExpiry?: number;
-  status?: 'fresh' | 'expiring soon'| 'expiring_soon' | 'expired';
+  status?: "fresh" | "expiring soon" | "expiring_soon" | "expired";
   createdAt?: string;
   purchaseDate?: string;
 }
@@ -69,21 +69,72 @@ export interface AttentionInventoryItem {
   statusLine: string;
   status: InventoryFreshnessStatus;
   badgeKey:
-    | 'dairy'
-    | 'fruits'
-    | 'meat'
-    | 'vegetables'
-    | 'beverages'
-    | 'groceries';
+    | "bakery"
+    | "beverages"
+    | "condiments"
+    | "dairy"
+    | "frozen"
+    | "fruits"
+    | "meat"
+    | "pantry"
+    | "seafood"
+    | "snacks"
+    | "misc"
+    | "vegetables";
 }
 
-export const CATEGORY_BADGE_STYLES: Record<AttentionInventoryItem['badgeKey'], { backgroundColor: string; color: string }> = {
-  dairy: { backgroundColor: '#DBEAFE', color: '#1D4ED8' },
-  fruits: { backgroundColor: '#FCE7F3', color: '#BE185D' },
-  meat: { backgroundColor: '#FEE2E2', color: '#B91C1C' },
-  vegetables: { backgroundColor: '#DCFCE7', color: '#15803D' },
-  beverages: { backgroundColor: '#EDE9FE', color: '#5B21B6' },
-  groceries: { backgroundColor: '#F3F4F6', color: '#374151' },
+export const CATEGORY_BADGE_STYLES: Record<
+  AttentionInventoryItem["badgeKey"],
+  { backgroundColor: string; color: string }
+> = {
+  bakery: {
+    backgroundColor: "#FFF1D6",
+    color: "#A15C00",
+  },
+  beverages: {
+    backgroundColor: "#EDE9FE",
+    color: "#5B21B6",
+  },
+  condiments: {
+    backgroundColor: "#FFF7ED",
+    color: "#C2410C",
+  },
+  dairy: {
+    backgroundColor: "#DBEAFE",
+    color: "#1D4ED8",
+  },
+  frozen: {
+    backgroundColor: "#E0F2FE",
+    color: "#0369A1",
+  },
+  fruits: {
+    backgroundColor: "#FCE7F3",
+    color: "#BE185D",
+  },
+  meat: {
+    backgroundColor: "#FEE2E2",
+    color: "#B91C1C",
+  },
+  pantry: {
+    backgroundColor: "#FEF3C7",
+    color: "#92400E",
+  },
+  seafood: {
+    backgroundColor: "#CCFBF1",
+    color: "#0F766E",
+  },
+  snacks: {
+    backgroundColor: "#F3E8FF",
+    color: "#7E22CE",
+  },
+  misc: {
+    backgroundColor: "#F3F4F6",
+    color: "#374151",
+  },
+  vegetables: {
+    backgroundColor: "#DCFCE7",
+    color: "#15803D",
+  },
 };
 
 /**
@@ -94,27 +145,31 @@ export const CATEGORY_BADGE_STYLES: Record<AttentionInventoryItem['badgeKey'], {
 export const ATTENTION_MAX_DAYS_LEFT = 3;
 
 export function itemRequiresAttention(item: CategoryInventoryItem): boolean {
-  if (item.status === 'expired' || item.daysLeft < 0) return true;
+  if (item.status === "expired" || item.daysLeft < 0) return true;
   if (item.daysLeft <= ATTENTION_MAX_DAYS_LEFT) return true;
   return false;
 }
 
-const CATEGORY_ID_TO_BADGE: Record<
-  string,
-  AttentionInventoryItem['badgeKey']
-> = {
-  '1': 'beverages',
-  '2': 'dairy',
-  '3': 'fruits',
-  '4': 'groceries',
-  '5': 'meat',
-  '6': 'vegetables',
-};
+const CATEGORY_ID_TO_BADGE: Record<string, AttentionInventoryItem["badgeKey"]> =
+  {
+    "1": "bakery",
+    "2": "beverages",
+    "3": "condiments",
+    "4": "dairy",
+    "5": "frozen",
+    "6": "fruits",
+    "7": "meat",
+    "8": "pantry",
+    "9": "seafood",
+    "10": "snacks",
+    "11": "misc",
+    "12": "vegetables",
+  };
 
 export function categoryIdToBadgeKey(
   categoryId: string,
-): AttentionInventoryItem['badgeKey'] {
-  return CATEGORY_ID_TO_BADGE[categoryId] ?? 'groceries';
+): AttentionInventoryItem["badgeKey"] {
+  return CATEGORY_ID_TO_BADGE[categoryId] ?? "groceries";
 }
 
 /** Build attention popup row from shared inventory item + category title. */
@@ -133,37 +188,33 @@ export function toAttentionInventoryItem(
   };
 }
 
-
-
 export function matchesFreshnessFilter(
   status: InventoryFreshnessStatus,
   filter: InventoryFreshnessFilter,
 ): boolean {
-  if (filter === 'all') return true;
+  if (filter === "all") return true;
   return status === filter;
 }
 
 /** Detail line for category list rows, e.g. "1 carton • 11 days left". */
 export function formatCategoryItemDetail(item: CategoryInventoryItem): string {
-  if (item.status === 'expired' || item.daysLeft < 0) {
+  if (item.status === "expired" || item.daysLeft < 0) {
     const ago = Math.abs(item.daysLeft);
-    return `${item.quantityLabel} • Expired ${ago} day${ago === 1 ? '' : 's'} ago`;
+    return `${item.quantityLabel} • Expired ${ago} day${ago === 1 ? "" : "s"} ago`;
   }
   if (item.daysLeft === 0) {
     return `${item.quantityLabel} • Expires today`;
   }
-  return `${item.quantityLabel} • ${item.daysLeft} day${item.daysLeft === 1 ? '' : 's'} left`;
+  return `${item.quantityLabel} • ${item.daysLeft} day${item.daysLeft === 1 ? "" : "s"} left`;
 }
 
-export function statusDotColor(
-  status: InventoryFreshnessStatus,
-): string {
+export function statusDotColor(status: InventoryFreshnessStatus): string {
   switch (status) {
-    case 'fresh':
+    case "fresh":
       return COLORS.success;
-    case 'expiringSoon':
+    case "expiringSoon":
       return COLORS.warning;
-    case 'expired':
+    case "expired":
       return COLORS.danger;
     default:
       return COLORS.subtext;
