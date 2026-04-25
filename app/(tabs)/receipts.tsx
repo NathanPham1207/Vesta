@@ -2,15 +2,15 @@ import {
   ReceiptHistoryCard,
   ReceiptItemsModal,
   ReceiptSummaryCard,
-} from "@/components/receipts";
-import { COLORS } from "@/constants/colors";
-import { RADIUS } from "@/constants/radius";
-import { SPACING } from "@/constants/spacing";
-import { FONT_SIZE, FONT_WEIGHT } from "@/constants/typography";
-import { getReceipts, type ReceiptItem } from "@/services/auth/receiptApi";
-import { useFocusEffect } from "expo-router";
-import { ChevronDown, ChevronUp } from "lucide-react-native";
-import React, { useCallback, useMemo, useState } from "react";
+} from '@/components/receipts';
+import { COLORS } from '@/constants/colors';
+import { RADIUS } from '@/constants/radius';
+import { SPACING } from '@/constants/spacing';
+import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import { getReceipts, type ReceiptItem } from '@/services/auth/receiptApi';
+import { useFocusEffect } from 'expo-router';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -18,9 +18,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -30,25 +30,25 @@ const MONTH_MENU_MAX_HEIGHT = 300;
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getMonthKey(dateStr: string): string {
-  const parts = dateStr.slice(0, 10).split("-");
-  if (parts.length < 2) return "Unknown";
+  const parts = dateStr.slice(0, 10).split('-');
+  if (parts.length < 2) return 'Unknown';
   return `${parts[0]}-${parts[1]}`; // Get YYYY-MM from date string
 }
 
 function getCurrentMonthKey(): string {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function formatMonthKey(key: string): string {
-  if (key === "Unknown") return "Unknown";
-  const [year, month] = key.split("-");
+  if (key === 'Unknown') return 'Unknown';
+  const [year, month] = key.split('-');
   // Dùng UTC để tránh timezone shift khi tạo Date chỉ để format
   const d = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
-  return d.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
+  return d.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
@@ -59,13 +59,10 @@ export default function ReceiptsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedMonth, setSelectedMonth] =
-    useState<string>(getCurrentMonthKey());
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthKey());
   const [isMonthMenuOpen, setIsMonthMenuOpen] = useState(false);
 
-  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptItem | null>(
-    null,
-  );
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptItem | null>(null);
   const [isItemsModalVisible, setIsItemsModalVisible] = useState(false);
 
   // ─── Data loading ───────────────────────────────────────────────────────────
@@ -77,8 +74,8 @@ export default function ReceiptsScreen() {
       const data = await getReceipts();
       setReceipts(data);
     } catch (err) {
-      console.error("Receipts load error:", err);
-      setError("Failed to load receipts.");
+      console.error('Receipts load error:', err);
+      setError('Failed to load receipts.');
     } finally {
       setLoading(false);
     }
@@ -93,9 +90,7 @@ export default function ReceiptsScreen() {
   // ─── Month grouping ─────────────────────────────────────────────────────────
 
   const availableMonths = useMemo(() => {
-    const keys = Array.from(
-      new Set(receipts.map((r) => getMonthKey(r.purchaseDate))),
-    );
+    const keys = Array.from(new Set(receipts.map((r) => getMonthKey(r.purchaseDate))));
     return keys.sort((a, b) => b.localeCompare(a)); // newest first
   }, [receipts]);
 
@@ -113,10 +108,7 @@ export default function ReceiptsScreen() {
 
   const summary = useMemo(() => {
     const totalReceipts = filteredReceipts.length;
-    const totalSpent = filteredReceipts.reduce(
-      (sum, r) => sum + r.totalAmount,
-      0,
-    );
+    const totalSpent = filteredReceipts.reduce((sum, r) => sum + r.totalAmount, 0);
     const averagePerTrip = totalReceipts > 0 ? totalSpent / totalReceipts : 0;
     return { totalReceipts, totalSpent, averagePerTrip };
   }, [filteredReceipts]);
@@ -136,7 +128,8 @@ export default function ReceiptsScreen() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Receipts</Text>
@@ -149,11 +142,7 @@ export default function ReceiptsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {loading ? (
-          <ActivityIndicator
-            size="small"
-            color={COLORS.primary}
-            style={styles.loader}
-          />
+          <ActivityIndicator size="small" color={COLORS.primary} style={styles.loader} />
         ) : null}
 
         {error ? (
@@ -188,11 +177,10 @@ export default function ReceiptsScreen() {
               <Text style={styles.monthButtonText} numberOfLines={1}>
                 {formatMonthKey(resolvedMonth)}
               </Text>
-              {isMonthMenuOpen ? (
-                <ChevronUp size={14} color={COLORS.subtext} />
-              ) : (
-                <ChevronDown size={14} color={COLORS.subtext} />
-              )}
+              {isMonthMenuOpen
+                ? <ChevronUp size={14} color={COLORS.subtext} />
+                : <ChevronDown size={14} color={COLORS.subtext} />
+              }
             </Pressable>
 
             {isMonthMenuOpen ? (
@@ -245,13 +233,13 @@ export default function ReceiptsScreen() {
             <Text style={styles.emptyIcon}>🧾</Text>
             <Text style={styles.emptyTitle}>
               {availableMonths.length === 0
-                ? "No receipts yet"
+                ? 'No receipts yet'
                 : `No receipts in ${formatMonthKey(resolvedMonth)}`}
             </Text>
             <Text style={styles.emptySubtitle}>
               {availableMonths.length === 0
-                ? "Scan a receipt to see your purchase history here."
-                : "Try selecting a different month from the dropdown."}
+                ? 'Scan a receipt to see your purchase history here.'
+                : 'Try selecting a different month from the dropdown.'}
             </Text>
           </View>
         ) : null}
@@ -291,9 +279,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: "column",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.md,
@@ -322,15 +310,15 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.md,
     zIndex: 20,
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
   },
   monthAnchor: {
-    position: "relative",
-    alignSelf: "flex-end",
+    position: 'relative',
+    alignSelf: 'flex-end',
   },
   monthButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.xs,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
@@ -354,15 +342,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   monthBackdrop: {
-    position: "absolute",
+    position: 'absolute',
     top: -SPACING.md,
     left: -SPACING.lg * 3,
     right: -SPACING.lg,
     bottom: -500,
   },
   monthMenu: {
-    position: "absolute",
-    top: "100%",
+    position: 'absolute',
+    top: '100%',
     right: 0,
     width: MONTH_MENU_WIDTH,
     backgroundColor: COLORS.surface,
@@ -375,7 +363,7 @@ const styles = StyleSheet.create({
     zIndex: 50,
     ...Platform.select({
       ios: {
-        shadowColor: "#000",
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -402,7 +390,7 @@ const styles = StyleSheet.create({
   monthMenuEmpty: {
     fontSize: FONT_SIZE.small,
     color: COLORS.subtext,
-    textAlign: "center",
+    textAlign: 'center',
     paddingVertical: SPACING.md,
   },
   scroll: {
@@ -423,7 +411,7 @@ const styles = StyleSheet.create({
     fontWeight: FONT_WEIGHT.medium,
   },
   emptyState: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingTop: SPACING.xxl * 2,
     gap: SPACING.sm,
   },
@@ -438,7 +426,7 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: FONT_SIZE.small,
     color: COLORS.subtext,
-    textAlign: "center",
+    textAlign: 'center',
     paddingHorizontal: SPACING.xl,
   },
   listSection: {
