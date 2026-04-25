@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { isValidEmailFormat } from '@/utils/validation/email';
 import { mockSignInDelay } from '@/services/auth/mockSignIn';
+import { isValidEmailFormat } from '@/utils/validation/email';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 
 export type SignInResult =
   | { ok: true }
@@ -8,6 +8,7 @@ export type SignInResult =
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  user: { name: string; email: string } | null; // Tracks the logged-in user [cite: 1]
   signIn: (email: string, password: string) => Promise<SignInResult>;
   signUp: (
     fullName: string,
@@ -21,9 +22,10 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // State to store user details for the Profile screen [cite: 1]
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    // TODO: Replace mock with Firebase Auth signInWithEmailAndPassword
     const e = email.trim();
     const p = password.trim();
 
@@ -43,13 +45,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
+    // Success: Update both auth status and user data [cite: 1]
     setIsAuthenticated(true);
+    setUser({ name: 'Test User', email: e }); 
     return { ok: true as const };
   }, []);
 
   const signUp = useCallback(
     async (fullName: string, email: string, password: string) => {
-      // TODO: Replace mock with Firebase Auth createUserWithEmailAndPassword
       const name = fullName.trim();
       const e = email.trim();
       const p = password.trim();
@@ -85,18 +88,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      // Success: Save the new user's info [cite: 1]
       setIsAuthenticated(true);
+      setUser({ name: name, email: e });
       return { ok: true as const };
     },
     [],
   );
 
   const signOut = useCallback(() => {
+    // Clear everything on logout [cite: 1]
     setIsAuthenticated(false);
+    setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, signIn, signUp, signOut }}>
+    // Providing 'user' here fixes the "Property missing" error in App.tsx [cite: 1]
+    <AuthContext.Provider value={{ isAuthenticated, user, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

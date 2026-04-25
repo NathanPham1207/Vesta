@@ -1,13 +1,12 @@
+import { CookingModeModal } from '@/components/recipes/CookingModeModal';
 import type { RecipeItem } from '@/components/recipes/RecipeCard';
 import { RecipeCard } from '@/components/recipes/RecipeCard';
-import { CookingModeModal } from '@/components/recipes/CookingModeModal';
 import { RecipeDetailsModal } from '@/components/recipes/RecipeDetailsModal';
-import { SearchBar } from '@/components/ui/SearchBar';
 import { recipesScreenStyles } from '@/components/recipes/recipes.styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { COLORS } from '@/constants/colors';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, ListRenderItem, Platform, Pressable, Text, View } from 'react-native';
+import { FlatList, ListRenderItem, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getRecipes } from '@/services/data/recipesApi';
 import { useFocusEffect } from 'expo-router';
@@ -20,6 +19,7 @@ const FILTER_OPTIONS = [
 ] as const;
 
 export default function RecipesScreen() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [filterId, setFilterId] = useState<string | null>('all');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -57,9 +57,7 @@ export default function RecipesScreen() {
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          r.description.toLowerCase().includes(q),
+        (r) => r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
       );
     }
     if (filterId && filterId !== 'all') {
@@ -114,102 +112,80 @@ export default function RecipesScreen() {
     setCurrentStep((s) => Math.max(0, s - 1));
   }, []);
 
-  const renderItem: ListRenderItem<RecipeItem> = ({ item }) => (
-    <View style={recipesScreenStyles.cardWrap}>
-      <RecipeCard
-        recipe={item}
-        onViewRecipe={() => openRecipeModal(item)}
-        onBookmark={() => {}}
-      />
-    </View>
-  );
-
-  return (
-    <SafeAreaView style={recipesScreenStyles.safe} edges={['top']}>
-      <View style={recipesScreenStyles.screenBody}>
-        <View style={recipesScreenStyles.profileFixedLayer} pointerEvents="box-none">
+  const renderItem: ListRenderItem<any> = ({ item }) => {
+    // 1. Profile Icon (Scrolls)
+    if (item.type === 'profile') {
+      return (
+        <View style={styles.profileRow}>
           <Pressable
-            style={recipesScreenStyles.profileBtn}
-            onPress={() => {}}
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-            hitSlop={8}
-          >
+            style={styles.profileBtn}
+            onPress={() => router.push('/profile')}
+            hitSlop={8}>
             <Ionicons name="person" size={22} color={COLORS.surface} />
           </Pressable>
         </View>
+      );
+    }
 
-        <View style={recipesScreenStyles.contentLayer}>
-          <View style={recipesScreenStyles.headerLayer}>
-            <View style={recipesScreenStyles.headerRow}>
-              <View style={recipesScreenStyles.titleBlock}>
-                <Text style={recipesScreenStyles.pageTitle}>Recipe Suggestions</Text>
-                <Text style={recipesScreenStyles.pageSubtitle}>
-                  Recipes based on your current inventory
-                </Text>
+    // 2. Main Title (Scrolls)
+    if (item.type === 'title') {
+      return (
+        <View style={styles.titleContainer}>
+          <Text style={recipesScreenStyles.pageTitle}>Recipe Suggestions</Text>
+          <Text style={recipesScreenStyles.pageSubtitle}>
+            Based on your current inventory
+          </Text>
+        </View>
+      );
+    }
+
+    // 3. Search & Filter (Sticks to Top)
+    if (item.type === 'sticky') {
+      return (
+        <View style={styles.stickyHeader}>
+          <View style={recipesScreenStyles.searchSpacing}>
+            <SearchBar
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search recipes..."
+              variant="recipes"
+            />
+          </View>
+
+          <View style={recipesScreenStyles.filterAnchor}>
+            <Pressable
+              onPress={() => setFilterMenuOpen((o) => !o)}
+              style={recipesScreenStyles.filterTrigger}
+            >
+              <View style={recipesScreenStyles.filterLeft}>
+                <Ionicons name="funnel-outline" size={20} color={COLORS.primary} />
+                <Text style={recipesScreenStyles.filterLabel}>Filters</Text>
               </View>
-            </View>
-
-            <View style={recipesScreenStyles.searchSpacing}>
-              <SearchBar
-                value={search}
-                onChangeText={setSearch}
-                placeholder="Search recipes..."
-                variant="recipes"
+              <Ionicons
+                name={filterMenuOpen ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={COLORS.subtext}
               />
-            </View>
+            </Pressable>
 
-            <View style={recipesScreenStyles.filterAnchor}>
-              <Pressable
-                onPress={() => setFilterMenuOpen((o) => !o)}
-                style={({ pressed }) => [
-                  recipesScreenStyles.filterTrigger,
-                  pressed && recipesScreenStyles.filterTriggerPressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: filterMenuOpen }}
-                accessibilityLabel="Filters"
-              >
-                <View style={recipesScreenStyles.filterLeft}>
-                  <Ionicons name="funnel-outline" size={20} color={COLORS.primary} />
-                  <Text style={recipesScreenStyles.filterLabel}>Filters</Text>
-                </View>
-                <Ionicons
-                  name={filterMenuOpen ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color={COLORS.subtext}
-                />
-              </Pressable>
-
-              {filterMenuOpen ? (
-                <View style={recipesScreenStyles.filterMenu}>
-                  {FILTER_OPTIONS.map((opt, index) => {
-                    const selected = filterId === opt.id;
-                    return (
-                      <Pressable
-                        key={opt.id}
-                        onPress={() => selectFilter(opt.id)}
-                        style={[
-                          recipesScreenStyles.filterOption,
-                          index === FILTER_OPTIONS.length - 1 &&
-                            recipesScreenStyles.filterOptionLast,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            recipesScreenStyles.filterOptionText,
-                            selected &&
-                              recipesScreenStyles.filterOptionTextSelected,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
+            {filterMenuOpen && (
+              <View style={recipesScreenStyles.filterMenu}>
+                {FILTER_OPTIONS.map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => selectFilter(opt.id)}
+                    style={recipesScreenStyles.filterOption}
+                  >
+                    <Text style={[
+                      recipesScreenStyles.filterOptionText, 
+                      filterId === opt.id && recipesScreenStyles.filterOptionTextSelected
+                    ]}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
 
           <FlatList
@@ -251,3 +227,34 @@ export default function RecipesScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  // Ensures background behind status bar matches other screens
+  safe: { flex: 1, backgroundColor: COLORS.background },
+  profileRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'flex-end', 
+    paddingTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: 5,
+  },
+  profileBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  stickyHeader: {
+    backgroundColor: COLORS.background, // Important: recipes hide behind this
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+    paddingTop: 5,
+    zIndex: 10,
+  }
+});

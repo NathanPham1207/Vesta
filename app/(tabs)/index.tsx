@@ -1,34 +1,39 @@
-import { AttentionItemsModal } from '@/components/home/AttentionItemsModal';
-import { CategoryDetailModal } from '@/components/home/CategoryDetailModal';
-import { CategoryGrid } from '@/components/home/CategoryGrid';
-import { ExpiringSoonCard } from '@/components/home/ExpiringSoonCard';
-import { FreshnessGuideCard } from '@/components/home/FreshnessGuideCard';
-import { CATEGORIES } from '@/constants/categories';
-import {
-  CHROME_BAR_MIN_HEIGHT,
-  CHROME_BAR_PADDING_BOTTOM,
-  CHROME_BAR_PADDING_TOP,
-  chromeBarBottomHairline,
-  chromeBarShadow,
-} from '@/constants/chromeBar';
-import { COLORS } from '@/constants/colors';
+import { AttentionItemsModal } from "@/components/home/AttentionItemsModal";
+import { CategoryDetailModal } from "@/components/home/CategoryDetailModal";
+import { CategoryGrid } from "@/components/home/CategoryGrid";
+import { ExpiringSoonCard } from "@/components/home/ExpiringSoonCard";
+import { FreshnessGuideCard } from "@/components/home/FreshnessGuideCard";
+import { CATEGORIES } from "@/constants/categories";
+import { COLORS } from "@/constants/colors";
 import {
   type CategoryInventoryItem,
   itemRequiresAttention,
   toAttentionInventoryItem,
-} from '@/constants/homeInventory';
-import { SPACING } from '@/constants/spacing';
-import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
-import { deleteInventory, getInventory, type InventoryItem } from '@/services/auth/inventoryApi';
+} from "@/constants/homeInventory";
+import { SPACING } from "@/constants/spacing";
+import { FONT_SIZE, FONT_WEIGHT } from "@/constants/typography";
+import {
+  deleteInventory,
+  getInventory,
+  type InventoryItem,
+} from "@/services/auth/inventoryApi";
 import {
   categoryToId,
   getPriorityLotToDelete,
-  groupInventoryItems
-} from '@/utils/inventoryGrouping';
-import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  groupInventoryItems,
+} from "@/utils/inventoryGrouping";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const [rawInventoryLots, setRawInventoryLots] = useState<InventoryItem[]>([]);
@@ -38,7 +43,6 @@ export default function HomeScreen() {
     () => groupInventoryItems(rawInventoryLots),
     [rawInventoryLots],
   );
-
 
   const [categoryModalId, setCategoryModalId] = useState<string | null>(null);
   const [attentionModalVisible, setAttentionModalVisible] = useState(false);
@@ -71,7 +75,7 @@ export default function HomeScreen() {
     () =>
       attentionSourceItems.map((it) => {
         const cat = CATEGORIES.find((c) => c.id === it.categoryId);
-        return toAttentionInventoryItem(it, cat?.title ?? '');
+        return toAttentionInventoryItem(it, cat?.title ?? "");
       }),
     [attentionSourceItems],
   );
@@ -79,7 +83,7 @@ export default function HomeScreen() {
   const selectedCategory = useMemo(
     () =>
       categoryModalId
-        ? categoriesWithCounts.find((c) => c.id === categoryModalId) ?? null
+        ? (categoriesWithCounts.find((c) => c.id === categoryModalId) ?? null)
         : null,
     [categoryModalId, categoriesWithCounts],
   );
@@ -101,8 +105,8 @@ export default function HomeScreen() {
       const items = await getInventory();
       setRawInventoryLots(items);
     } catch (error) {
-      console.error('Inventory load error:', error);
-      setInventoryError('Failed to load inventory.');
+      console.error("Inventory load error:", error);
+      setInventoryError("Failed to load inventory.");
     } finally {
       setLoadingInventory(false);
     }
@@ -111,7 +115,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadInventory();
-    }, [loadInventory])
+    }, [loadInventory]),
   );
 
   const deleteRawInventoryItem = useCallback(async (itemId: string) => {
@@ -121,11 +125,10 @@ export default function HomeScreen() {
       // Xóa khỏi local state ngay, không cần refetch
       setRawInventoryLots((prev) => prev.filter((lot) => lot.id !== itemId));
     } catch (error) {
-      console.error('Delete error:', error);
-      Alert.alert('Error', 'Failed to delete inventory item.');
+      console.error("Delete error:", error);
+      Alert.alert("Error", "Failed to delete inventory item.");
     }
   }, []);
-  
 
   const deleteAttentionItem = useCallback(
     async (groupId: string) => {
@@ -135,7 +138,7 @@ export default function HomeScreen() {
       // Business rule: Expiring Soon delete removes one underlying lot, not the entire grouped row.
       const targetLot = getPriorityLotToDelete(group.lots);
       if (!targetLot?.id) {
-        Alert.alert('Error', 'Unable to resolve a lot to delete.');
+        Alert.alert("Error", "Unable to resolve a lot to delete.");
         return;
       }
 
@@ -143,36 +146,45 @@ export default function HomeScreen() {
         await deleteInventory(targetLot.id);
         await loadInventory();
       } catch (error) {
-        console.error('Delete attention lot error:', error);
-        Alert.alert('Error', 'Failed to delete inventory item.');
+        console.error("Delete attention lot error:", error);
+        Alert.alert("Error", "Failed to delete inventory item.");
       }
     },
     [inventoryItems, loadInventory],
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      {/* FIXED HEADER BANNER */}
+      <View style={styles.fixedHeader}>
+        <View style={styles.brandHeader}>
           <Image
-            source={require('../../assets/images/logo_vesta_clean.png')}
+            source={require("../../assets/images/logo_vesta_clean.png")}
             style={styles.headerLogo}
           />
-          <View style={styles.headerText}>
+          <View>
             <Text style={styles.brand}>Vesta</Text>
             <Text style={styles.brandSubtitle}>Smart Inventory</Text>
           </View>
         </View>
-        <Pressable style={styles.avatarBtn} onPress={() => {}} hitSlop={10}>
-          <Text style={styles.avatarIcon}>👤</Text>
+
+        <Pressable
+          style={styles.profileBtn}
+          onPress={() => router.push("/profile")}
+          hitSlop={8}
+        >
+          <Ionicons name="person" size={22} color={COLORS.surface} />
         </Pressable>
       </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {loadingInventory ? <Text style={styles.messageText}>Loading inventory...</Text> : null}
+        {loadingInventory ? (
+          <Text style={styles.messageText}>Loading inventory...</Text>
+        ) : null}
         {inventoryError ? (
           <Pressable style={styles.retryButton} onPress={loadInventory}>
             <Text style={styles.retryText}>{inventoryError} Tap to retry.</Text>
@@ -201,6 +213,7 @@ export default function HomeScreen() {
         onDeleteItem={deleteRawInventoryItem}
         onClose={() => setCategoryModalId(null)}
       />
+
       <AttentionItemsModal
         visible={attentionModalVisible}
         onClose={() => setAttentionModalVisible(false)}
@@ -217,6 +230,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  fixedHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start", // Moved up to match scrolling headers
+    paddingHorizontal: SPACING.lg,
+    paddingTop: 5, // Tightened to match the status bar clearance on other screens
+    paddingBottom: SPACING.md,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  brandHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+  },
+  profileBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
   scroll: {
     flex: 1,
   },
@@ -225,40 +267,15 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxl,
     paddingTop: SPACING.md,
   },
-  spacer: {
-    height: SPACING.lg,
-  },
-  header: {
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: CHROME_BAR_PADDING_TOP,
-    paddingBottom: CHROME_BAR_PADDING_BOTTOM,
-    minHeight: CHROME_BAR_MIN_HEIGHT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    ...chromeBarBottomHairline,
-    ...chromeBarShadow,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
   headerLogo: {
-    width: 32,
-    height: 32,
-    resizeMode: 'contain',
-  },
-  headerText: {
-    flexDirection: 'column',
-    gap: 2,
+    width: 40,
+    height: 40,
+    resizeMode: "contain",
   },
   brand: {
     fontSize: FONT_SIZE.h2,
     fontWeight: FONT_WEIGHT.bold,
     color: COLORS.primary,
-    lineHeight: 28,
   },
   brandSubtitle: {
     fontSize: FONT_SIZE.small,
@@ -271,8 +288,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: COLORS.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarIcon: {
     fontSize: 18,

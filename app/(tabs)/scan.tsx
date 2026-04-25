@@ -1,14 +1,20 @@
-import { ConfirmScanModal } from '@/components/scan/ConfirmScanModal';
-import { ManualAddCard } from '@/components/scan/ManualAddCard';
-import { ManualItemModal, type ManualItemSubmitInput } from '@/components/scan/ManualItemModal';
-import { ScanActionCard } from '@/components/scan/ScanActionCard';
-import { ScanLoadingOverlay } from '@/components/scan/ScanLoadingOverlay';
-import { COLORS } from '@/constants/colors';
-import { SPACING } from '@/constants/spacing';
-import { saveInventory } from '@/services/auth/inventoryApi';
-import { saveReceipt } from '@/services/auth/receiptApi';
-import type { ScanAnalysisResult, ScanFailureReason } from '@/services/auth/scanApi';
-import { scanReceipt } from '@/services/auth/scanApi';
+import { ConfirmScanModal } from "@/components/scan/ConfirmScanModal";
+import { ManualAddCard } from "@/components/scan/ManualAddCard";
+import {
+  ManualItemModal,
+  type ManualItemSubmitInput,
+} from "@/components/scan/ManualItemModal";
+import { ScanActionCard } from "@/components/scan/ScanActionCard";
+import { ScanLoadingOverlay } from "@/components/scan/ScanLoadingOverlay";
+import { COLORS } from "@/constants/colors";
+import { SPACING } from "@/constants/spacing";
+import { saveInventory } from "@/services/auth/inventoryApi";
+import { saveReceipt } from "@/services/auth/receiptApi";
+import type {
+  ScanAnalysisResult,
+  ScanFailureReason,
+} from "@/services/auth/scanApi";
+import { scanReceipt } from "@/services/auth/scanApi";
 import {
   buildInventoryItemsFromScan,
   buildManualInventoryItem,
@@ -16,23 +22,35 @@ import {
   getUnexpectedScanErrorMessage,
   normalizeScanResponse,
   SCAN_GENERIC_FAILURE_MESSAGE,
-} from '@/utils/scan';
-import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "@/utils/scan";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import React from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function ScanScreen() {
   const router = useRouter();
 
-  const [scanResult, setScanResult] = React.useState<ScanAnalysisResult | null>(null);
-  const [receiptPreviewUri, setReceiptPreviewUri] = React.useState<string | null>(null);
+  const [scanResult, setScanResult] = React.useState<ScanAnalysisResult | null>(
+    null,
+  );
+  const [receiptPreviewUri, setReceiptPreviewUri] = React.useState<
+    string | null
+  >(null);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [isConfirmModalVisible, setIsConfirmModalVisible] = React.useState(false);
+  const [isConfirmModalVisible, setIsConfirmModalVisible] =
+    React.useState(false);
   const [isManualModalVisible, setIsManualModalVisible] = React.useState(false);
 
   // ─── Scan flow ─────────────────────────────────────────────────────────────
@@ -52,23 +70,30 @@ export default function ScanScreen() {
         const response = await scanReceipt({
           uri: asset.uri ?? null,
           fileName: asset.fileName ?? null,
-          mimeType: asset.mimeType ?? 'image/jpeg',
+          mimeType: asset.mimeType ?? "image/jpeg",
         });
 
-        if (!response || typeof response !== 'object' || !('success' in response)) {
-          Alert.alert('Scan Failed', SCAN_GENERIC_FAILURE_MESSAGE);
+        if (
+          !response ||
+          typeof response !== "object" ||
+          !("success" in response)
+        ) {
+          Alert.alert("Scan Failed", SCAN_GENERIC_FAILURE_MESSAGE);
           return;
         }
 
         if (!response.success) {
           const reason = response.reason as ScanFailureReason | undefined;
-          Alert.alert('Scan Failed', getScanFailureMessage(reason ?? null));
+          Alert.alert("Scan Failed", getScanFailureMessage(reason ?? null));
           return;
         }
 
         const result = normalizeScanResponse(response);
         if (!result) {
-          Alert.alert('Scan Failed', getScanFailureMessage('no_food_items_detected'));
+          Alert.alert(
+            "Scan Failed",
+            getScanFailureMessage("no_food_items_detected"),
+          );
           return;
         }
 
@@ -76,7 +101,7 @@ export default function ScanScreen() {
         setScanResult(result);
         setIsConfirmModalVisible(true);
       } catch (error) {
-        Alert.alert('Scan Failed', getUnexpectedScanErrorMessage(error));
+        Alert.alert("Scan Failed", getUnexpectedScanErrorMessage(error));
       } finally {
         setLoading(false);
       }
@@ -87,13 +112,16 @@ export default function ScanScreen() {
   const takePhoto = React.useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
 
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera access is required to scan images.');
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "Camera access is required to scan images.",
+      );
       return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: false,
       quality: 0.9,
     });
@@ -105,7 +133,7 @@ export default function ScanScreen() {
 
   const uploadFromGallery = React.useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: false,
       quality: 0.9,
     });
@@ -119,33 +147,33 @@ export default function ScanScreen() {
 
   const confirmScan = React.useCallback(async () => {
     if (!scanResult) return;
-   
+
     const items = buildInventoryItemsFromScan(scanResult);
     if (items.length === 0) {
-      Alert.alert('No Items', 'No scanned items are available to save.');
+      Alert.alert("No Items", "No scanned items are available to save.");
       return;
     }
-   
+
     try {
       setSaving(true);
-   
+
       // Lưu inventory và receipt song song
       await Promise.all([
         saveInventory({ items }),
         saveReceipt({
-          storeName: scanResult.storeName ?? 'Unknown store',
+          storeName: scanResult.storeName ?? "Unknown store",
           purchaseDate: scanResult.purchaseDate ?? new Date().toISOString(),
           imageType: scanResult.imageType,
           items: scanResult.items,
         }),
       ]);
-   
+
       resetScanState();
-      Alert.alert('Success', 'Items saved to inventory.', [
-        { text: 'OK', onPress: () => router.replace('/') },
+      Alert.alert("Success", "Items saved to inventory.", [
+        { text: "OK", onPress: () => router.replace("/") },
       ]);
     } catch (error) {
-      Alert.alert('Save Failed', 'Something went wrong. Please try again.');
+      Alert.alert("Save Failed", "Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -168,7 +196,7 @@ export default function ScanScreen() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.topRightAvatarRow}>
         <Pressable style={styles.avatarBtn} onPress={() => {}} hitSlop={10}>
           <Text style={styles.avatarIcon}>👤</Text>
@@ -227,13 +255,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.xl * 2,
     paddingBottom: SPACING.xl * 2,
   },
   topRightAvatarRow: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
   },
@@ -241,8 +269,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: COLORS.muted,
   },
   avatarIcon: {

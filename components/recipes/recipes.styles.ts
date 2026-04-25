@@ -1,14 +1,14 @@
-import { Platform, StyleSheet } from 'react-native';
 import { COLORS } from '@/constants/colors';
 import { RADIUS } from '@/constants/radius';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
+import { Platform, StyleSheet } from 'react-native';
 
 /** Screen background — soft mint from mockup */
 export const RECIPES_MINT_BG = '#E8F8EE';
 
 /** Profile touch target size (unchanged). */
-export const RECIPES_PROFILE_BTN_SIZE = 44;
+export const RECIPES_PROFILE_BTN_SIZE = 40;
 
 /**
  * Vertical space reserved below the fixed profile so title/search/filter/cards sit lower.
@@ -20,7 +20,7 @@ export const RECIPES_CONTENT_TOP_INSET =
 export const recipesScreenStyles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: RECIPES_MINT_BG,
+    backgroundColor: COLORS.background,
   },
   /** Wraps header + list so filter layer stacks above FlatList cells. */
   screenBody: {
@@ -33,10 +33,12 @@ export const recipesScreenStyles = StyleSheet.create({
    */
   profileFixedLayer: {
     position: 'absolute',
-    top: 0,
+    top: 15,
     left: 0,
     right: 0,
-    zIndex: 1100,
+    zIndex: 10,
+    paddingHorizontal: 20,
+    alignItems: 'flex-end',
     pointerEvents: 'box-none',
     ...Platform.select({
       android: { elevation: 0 },
