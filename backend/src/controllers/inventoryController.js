@@ -3,6 +3,7 @@ const {
   getInventoryItems,
   saveInventoryItems,
 } = require("../services/inventoryService");
+const { resolveRequestUserId } = require("../config/userContext");
 
 function validateItem(item) {
   const requiredFields = ["name", "category", "quantity", "expiryDate"];
@@ -68,7 +69,14 @@ function normalizeItem(item) {
 async function saveInventory(req, res) {
   try {
     const { items } = req.body || {};
-    const userId = req.params.userId || "test-user";
+    const userId = resolveRequestUserId(req);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required",
+      });
+    }
 
     if (!Array.isArray(items)) {
       return res.status(400).json({
@@ -106,7 +114,15 @@ async function saveInventory(req, res) {
 
 async function fetchInventory(req, res) {
   try {
-    const userId = req.params.userId || "test-user";
+    const userId = resolveRequestUserId(req);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required",
+      });
+    }
+
     const items = await getInventoryItems(userId);
 
     return res.status(200).json({
@@ -124,8 +140,15 @@ async function fetchInventory(req, res) {
 
 async function removeInventoryItem(req, res) {
   try {
-    const userId = req.params.userId || "test-user";
+    const userId = resolveRequestUserId(req);
     const { itemId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required",
+      });
+    }
 
     if (!itemId) {
       return res.status(400).json({

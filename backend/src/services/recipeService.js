@@ -85,6 +85,10 @@ function getOpenAIClient() {
   return client;
 }
 
+function isOpenAIConfigured() {
+  return Boolean(process.env.OPENAI_API_KEY);
+}
+
 function normalizePantryItems(items) {
   return items.map((item) => ({
     name: String(item.name || "").trim().toLowerCase(),
@@ -552,4 +556,5 @@ async function generateRecipes(pantryItems) {
 
 module.exports = {
   generateRecipes,
+  isOpenAIConfigured,
 };

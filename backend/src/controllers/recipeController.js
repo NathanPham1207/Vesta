@@ -1,10 +1,14 @@
-const { generateRecipes } = require("../services/recipeService");
+const {
+  generateRecipes,
+  isOpenAIConfigured,
+} = require("../services/recipeService");
 const { getInventoryItems } = require("../services/inventoryService");
 const { db, admin } = require("../config/firebase");
+const { resolveRequestUserId } = require("../config/userContext");
 
 async function getRecipeRecommendations(req, res) {
   try {
-    const userId = req.query.userId || req.body.userId;
+    const userId = resolveRequestUserId(req, { allowDefault: false });
 
     if (!userId) {
       return res.status(400).json({
@@ -42,8 +46,14 @@ async function getRecipeRecommendations(req, res) {
 
       if (cacheSnap.exists) {
         const data = cacheSnap.data();
+        const shouldRefreshFallbackCache =
+          data.pantryKey === pantryKey &&
+          Boolean(data.fallback) &&
+          isOpenAIConfigured();
 
-        if (data.pantryKey === pantryKey) {
+        if (shouldRefreshFallbackCache) {
+          await cacheRef.delete();
+        } else if (data.pantryKey === pantryKey) {
           return res.status(200).json({
             success: true,
             cached: true,
