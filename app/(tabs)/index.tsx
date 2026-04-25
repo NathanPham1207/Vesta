@@ -25,12 +25,13 @@ import {
   getPriorityLotToDelete,
   groupInventoryItems
 } from '@/utils/inventoryGrouping';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [rawInventoryLots, setRawInventoryLots] = useState<InventoryItem[]>([]);
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
@@ -163,7 +164,7 @@ export default function HomeScreen() {
             <Text style={styles.brandSubtitle}>Smart Inventory</Text>
           </View>
         </View>
-        <Pressable style={styles.avatarBtn} onPress={() => {}} hitSlop={10}>
+        <Pressable style={styles.avatarBtn} onPress={() => router.push('/profile')} hitSlop={10}>
           <Text style={styles.avatarIcon}>👤</Text>
         </Pressable>
       </View>

@@ -170,7 +170,7 @@ export default function ScanScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topRightAvatarRow}>
-        <Pressable style={styles.avatarBtn} onPress={() => {}} hitSlop={10}>
+        <Pressable style={styles.avatarBtn} onPress={() => router.push('/profile')} hitSlop={10}>
           <Text style={styles.avatarIcon}>👤</Text>
         </Pressable>
       </View>
