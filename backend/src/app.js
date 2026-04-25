@@ -23,6 +23,7 @@ app.get("/", (req, res) => {
 app.use("/inventory", inventoryRoutes);
 app.use("/scan/receipt", receiptRoutes);
 app.use("/recipes", recipeRoutes);
+app.use("/api/recipes", recipeRoutes);
 
 app.use((req, res) => {
   return res.status(404).json({

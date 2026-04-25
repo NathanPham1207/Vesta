@@ -1,8 +1,66 @@
 const OpenAI = require("openai");
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes
+
+const IMAGE_LIBRARY = {
+  egg: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Cooked egg dish on a plate",
+  },
+  toast: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Toast plated for breakfast",
+  },
+  rice: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Rice-based home cooked dish",
+  },
+  pasta: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Pasta served in a bowl",
+  },
+  salad: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Fresh salad in a bowl",
+  },
+  soup: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1547592180-85f173990554?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Soup served in a ceramic bowl",
+  },
+  sandwich: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Sandwich stacked on a plate",
+  },
+  chicken: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Chicken entree plated for dinner",
+  },
+  fruit: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Fresh fruit arranged on a table",
+  },
+  yogurt: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Yogurt parfait with fruit",
+  },
+  default: {
+    imageUrl:
+      "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=80&auto=format&fit=crop",
+    imageAlt: "Cooked meal on a dining table",
+  },
+};
+
+let client = null;
 
 // simple cache memory
 let recipeCache = {
@@ -11,7 +69,21 @@ let recipeCache = {
   createdAt: 0,
 };
 
-const CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes
+function getOpenAIClient() {
+  if (client) {
+    return client;
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return null;
+  }
+
+  client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  return client;
+}
 
 function normalizePantryItems(items) {
   return items.map((item) => ({
@@ -39,6 +111,83 @@ function buildPantryKey(items) {
   );
 }
 
+function hashText(text) {
+  let hash = 0;
+
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+
+  return hash;
+}
+
+function pickRecipeImage(recipe) {
+  const haystack = [
+    recipe.title,
+    recipe.description,
+    ...(Array.isArray(recipe.ingredientsUsed) ? recipe.ingredientsUsed : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const keywordOrder = [
+    { keyword: "omelette", key: "egg" },
+    { keyword: "egg", key: "egg" },
+    { keyword: "toast", key: "toast" },
+    { keyword: "rice", key: "rice" },
+    { keyword: "pasta", key: "pasta" },
+    { keyword: "salad", key: "salad" },
+    { keyword: "soup", key: "soup" },
+    { keyword: "sandwich", key: "sandwich" },
+    { keyword: "chicken", key: "chicken" },
+    { keyword: "banana", key: "fruit" },
+    { keyword: "berry", key: "fruit" },
+    { keyword: "fruit", key: "fruit" },
+    { keyword: "yogurt", key: "yogurt" },
+  ];
+
+  for (const entry of keywordOrder) {
+    if (haystack.includes(entry.keyword)) {
+      return IMAGE_LIBRARY[entry.key];
+    }
+  }
+
+  const libraryKeys = Object.keys(IMAGE_LIBRARY).filter((key) => key !== "default");
+  const selectedKey =
+    libraryKeys[hashText(haystack || recipe.title || "recipe") % libraryKeys.length];
+
+  return IMAGE_LIBRARY[selectedKey] || IMAGE_LIBRARY.default;
+}
+
+function enrichRecipe(recipe, index) {
+  const image = pickRecipeImage(recipe);
+
+  return {
+    id:
+      typeof recipe.id === "string" && recipe.id.trim()
+        ? recipe.id
+        : `recipe-${index + 1}-${hashText(recipe.title || String(index))}`,
+    title: recipe.title,
+    description: recipe.description,
+    whyRecommended: recipe.whyRecommended,
+    difficulty: recipe.difficulty,
+    ingredientsUsed: recipe.ingredientsUsed,
+    missingIngredients: recipe.missingIngredients,
+    steps: recipe.steps,
+    imageUrl: recipe.imageUrl || image.imageUrl,
+    imageAlt: recipe.imageAlt || `${recipe.title} - ${image.imageAlt}`,
+  };
+}
+
+function buildResult(recipes, options = {}) {
+  return {
+    recipes: recipes.map(enrichRecipe),
+    source: options.source || "fallback",
+    fallback: Boolean(options.fallback),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 function getFallbackRecipes(normalizedItems) {
   const names = normalizedItems.map((i) => i.name);
   const hasEgg = names.includes("egg") || names.includes("eggs");
@@ -47,6 +196,11 @@ function getFallbackRecipes(normalizedItems) {
   const hasSpinach = names.includes("spinach");
   const hasRice = names.includes("rice");
   const hasCheese = names.includes("cheese");
+  const hasChicken = names.includes("chicken") || names.includes("chicken breast");
+  const hasYogurt = names.includes("yogurt") || names.includes("greek yogurt");
+  const hasFruit = names.some((name) =>
+    ["banana", "bananas", "strawberry", "strawberries", "blueberry", "blueberries"].includes(name)
+  );
 
   const recipes = [];
 
@@ -125,7 +279,45 @@ function getFallbackRecipes(normalizedItems) {
     });
   }
 
-  while (recipes.length < 3) {
+  if (hasChicken) {
+    recipes.push({
+      title: "Simple Chicken Skillet",
+      description: "A quick chicken skillet with pantry basics.",
+      whyRecommended:
+        "It helps use chicken before it expires and keeps the recipe practical.",
+      difficulty: 2,
+      ingredientsUsed: ["chicken"],
+      missingIngredients: ["salt", "pepper", "garlic"],
+      steps: [
+        "Season the chicken with salt and pepper if available.",
+        "Heat oil in a skillet over medium heat.",
+        "Cook the chicken until browned on both sides.",
+        "Lower the heat and cook until the center is fully done.",
+        "Add garlic or simple seasoning if available.",
+        "Serve hot with any side you have on hand.",
+      ],
+    });
+  }
+
+  if (hasYogurt && hasFruit) {
+    recipes.push({
+      title: "Fruit Yogurt Bowl",
+      description: "A fast yogurt bowl topped with fruit.",
+      whyRecommended:
+        "It uses perishable dairy and fruit with almost no prep time.",
+      difficulty: 1,
+      ingredientsUsed: ["yogurt", "fruit"],
+      missingIngredients: ["granola or honey (optional)"],
+      steps: [
+        "Spoon the yogurt into a bowl.",
+        "Slice or arrange the fruit on top.",
+        "Add granola or honey if available.",
+        "Serve immediately.",
+      ],
+    });
+  }
+
+  while (recipes.length < 4) {
     recipes.push({
       title: "Simple Pantry Bowl",
       description: "A flexible bowl meal using whatever ingredients are available.",
@@ -149,11 +341,14 @@ function getFallbackRecipes(normalizedItems) {
     });
   }
 
-  return { recipes: recipes.slice(0, 3) };
+  return buildResult(recipes.slice(0, 4), {
+    source: "fallback",
+    fallback: true,
+  });
 }
 
 function validateRecipeShape(parsed) {
-  if (!parsed || !Array.isArray(parsed.recipes)) {
+  if (!parsed || !Array.isArray(parsed.recipes) || parsed.recipes.length === 0) {
     return false;
   }
 
@@ -187,41 +382,41 @@ function validateRecipeShape(parsed) {
   });
 }
 
-async function generateRecipes(pantryItems) {
-  const normalizedItems = normalizePantryItems(pantryItems).filter(
-    (i) => i.name
-  );
-
-  if (!normalizedItems.length) {
-    return { recipes: [] };
+function extractJsonPayload(rawText) {
+  if (!rawText || typeof rawText !== "string") {
+    throw new Error("Model returned an empty response.");
   }
 
-  const pantryKey = buildPantryKey(normalizedItems);
-  const now = Date.now();
+  const trimmed = rawText.trim();
 
-  if (
-    recipeCache.pantryKey === pantryKey &&
-    recipeCache.data &&
-    now - recipeCache.createdAt < CACHE_TTL_MS
-  ) {
-    return {
-      ...recipeCache.data,
-      cached: true,
-    };
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    const firstBrace = trimmed.indexOf("{");
+    const lastBrace = trimmed.lastIndexOf("}");
+
+    if (firstBrace === -1 || lastBrace === -1 || firstBrace >= lastBrace) {
+      throw error;
+    }
+
+    const candidate = trimmed.slice(firstBrace, lastBrace + 1);
+    return JSON.parse(candidate);
   }
+}
 
+function buildPrompt(normalizedItems) {
   const expiringSoon = normalizedItems
     .filter((i) => i.status === "expiring_soon" || i.status === "expiring soon")
     .map((i) => i.name);
 
-  const prompt = `
+  return `
 You are a recipe recommendation assistant for a food waste reduction app.
 
 Pantry items:
 ${JSON.stringify(normalizedItems, null, 2)}
 
 Instructions:
-- Recommend exactly 10 recipes.
+- Recommend exactly 6 recipes.
 - Prioritize ingredients with status "expiring_soon" or "expiring soon".
 - Prefer easy and practical recipes for college students.
 - Prefer recipes that use many existing pantry items.
@@ -259,28 +454,77 @@ Return this exact structure:
 Available ingredients: ${normalizedItems.map((i) => i.name).join(", ")}
 Expiring soon ingredients: ${expiringSoon.join(", ")}
 `;
+}
+
+async function generateRecipes(pantryItems) {
+  const normalizedItems = normalizePantryItems(pantryItems).filter(
+    (i) => i.name
+  );
+
+  if (!normalizedItems.length) {
+    return buildResult([], {
+      source: "fallback",
+      fallback: true,
+    });
+  }
+
+  const pantryKey = buildPantryKey(normalizedItems);
+  const now = Date.now();
+
+  if (
+    recipeCache.pantryKey === pantryKey &&
+    recipeCache.data &&
+    now - recipeCache.createdAt < CACHE_TTL_MS
+  ) {
+    return {
+      ...recipeCache.data,
+      cached: true,
+    };
+  }
+
+  const openAIClient = getOpenAIClient();
+
+  if (!openAIClient) {
+    const fallback = getFallbackRecipes(normalizedItems);
+
+    recipeCache = {
+      pantryKey,
+      data: fallback,
+      createdAt: now,
+    };
+
+    return {
+      ...fallback,
+      cached: false,
+      message: "OPENAI_API_KEY is missing. Returned curated fallback recipes.",
+    };
+  }
 
   try {
-    const response = await client.responses.create({
+    const response = await openAIClient.responses.create({
       model: "gpt-5.4",
-      input: prompt,
+      input: buildPrompt(normalizedItems),
     });
 
-    const raw = response.output_text;
-    const parsed = JSON.parse(raw);
+    const parsed = extractJsonPayload(response.output_text);
 
     if (!validateRecipeShape(parsed)) {
       throw new Error("Invalid recipe JSON shape returned by model.");
     }
 
+    const result = buildResult(parsed.recipes, {
+      source: "openai",
+      fallback: false,
+    });
+
     recipeCache = {
       pantryKey,
-      data: parsed,
+      data: result,
       createdAt: now,
     };
 
     return {
-      ...parsed,
+      ...result,
       cached: false,
     };
   } catch (error) {
@@ -291,10 +535,17 @@ Expiring soon ingredients: ${expiringSoon.join(", ")}
 
     const fallback = getFallbackRecipes(normalizedItems);
 
+    recipeCache = {
+      pantryKey,
+      data: fallback,
+      createdAt: now,
+    };
+
     return {
       ...fallback,
       cached: false,
-      fallback: true,
+      message:
+        error.message || "OpenAI recipe generation failed. Using fallback.",
     };
   }
 }

@@ -7,23 +7,27 @@ const serviceAccountPath = path.resolve(
   "./serviceAccountKey.json"
 );
 
+let db = null;
+
 if (!admin.apps.length) {
   if (!fs.existsSync(serviceAccountPath)) {
-    throw new Error(
-      "serviceAccountKey.json not found. Please add Firebase credentials."
+    console.warn(
+      "serviceAccountKey.json not found. Firebase-backed features will be unavailable."
     );
+  } else {
+    const serviceAccount = require(serviceAccountPath);
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+
+    console.log("Firebase initialized");
   }
-
-  const serviceAccount = require(serviceAccountPath);
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-
-  console.log("Firebase initialized");
 }
 
-const db = admin.firestore();
+if (admin.apps.length) {
+  db = admin.firestore();
+}
 
 module.exports = {
   admin,

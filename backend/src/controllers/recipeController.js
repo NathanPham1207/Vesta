@@ -31,33 +31,51 @@ async function getRecipeRecommendations(req, res) {
         .sort((a, b) => a.name.localeCompare(b.name))
     );
 
-    const cacheRef = db
-      .collection("users")
-      .doc(userId)
-      .collection("recipeCache")
-      .doc("current");
+    if (db) {
+      const cacheRef = db
+        .collection("users")
+        .doc(userId)
+        .collection("recipeCache")
+        .doc("current");
 
-    const cacheSnap = await cacheRef.get();
+      const cacheSnap = await cacheRef.get();
 
-    if (cacheSnap.exists) {
-      const data = cacheSnap.data();
+      if (cacheSnap.exists) {
+        const data = cacheSnap.data();
 
-      if (data.pantryKey === pantryKey) {
-        return res.status(200).json({
-          success: true,
-          cached: true,
-          recipes: data.recipes,
-        });
+        if (data.pantryKey === pantryKey) {
+          return res.status(200).json({
+            success: true,
+            cached: true,
+            recipes: data.recipes,
+            source: data.source || "cache",
+            fallback: Boolean(data.fallback),
+            generatedAt: data.generatedAt || null,
+            message: data.message || undefined,
+          });
+        }
       }
     }
 
     const result = await generateRecipes(pantryItems);
 
-    await cacheRef.set({
-      pantryKey,
-      recipes: result.recipes,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    if (db) {
+      const cacheRef = db
+        .collection("users")
+        .doc(userId)
+        .collection("recipeCache")
+        .doc("current");
+
+      await cacheRef.set({
+        pantryKey,
+        recipes: result.recipes,
+        source: result.source,
+        fallback: Boolean(result.fallback),
+        message: result.message || null,
+        generatedAt: result.generatedAt || new Date().toISOString(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
 
     return res.status(200).json({
       success: true,
