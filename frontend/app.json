@@ -23,7 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/logo_vesta_clean.png",
         "backgroundImage": "./assets/images/logo_vesta_clean.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },

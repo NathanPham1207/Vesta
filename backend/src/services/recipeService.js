@@ -94,6 +94,8 @@ function normalizePantryItems(items) {
     name: String(item.name || "").trim().toLowerCase(),
     category: item.category || "Unknown",
     status: item.status || "unknown",
+    purchaseDate: item.purchaseDate || null,
+    expiryDate: item.expiryDate || null,
     daysLeft:
       typeof item.daysLeft === "number"
         ? item.daysLeft
@@ -123,6 +125,85 @@ function hashText(text) {
   }
 
   return hash;
+}
+
+function normalizeDifficultyLabel(value) {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === "hard") return "Hard";
+    if (normalized === "medium") return "Medium";
+    return "Easy";
+  }
+
+  if (typeof value === "number") {
+    if (value >= 4) return "Hard";
+    if (value >= 2) return "Medium";
+  }
+
+  return "Easy";
+}
+
+function normalizeDifficultyLevel(value) {
+  if (Number.isInteger(value) && value >= 1 && value <= 5) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "hard") return 4;
+    if (normalized === "medium") return 3;
+    if (normalized === "easy") return 1;
+  }
+
+  return 1;
+}
+
+function normalizeTimeString(value, recipe) {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  const stepCount = Array.isArray(recipe.steps) ? recipe.steps.length : 0;
+  if (stepCount >= 8) return "25 min";
+  if (stepCount >= 5) return "20 min";
+  return "15 min";
+}
+
+function normalizeServings(value) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.max(1, Math.round(value));
+  }
+
+  return 1;
+}
+
+function buildIngredients(recipe) {
+  const usedIngredients = Array.isArray(recipe.ingredientsUsed)
+    ? recipe.ingredientsUsed
+        .filter((item) => typeof item === "string" && item.trim())
+        .map((name, index) => ({
+          id: `used-${index}-${name.trim().toLowerCase()}`,
+          name: name.trim(),
+          quantity: "",
+          image: null,
+          inStock: true,
+        }))
+    : [];
+
+  const missingIngredients = Array.isArray(recipe.missingIngredients)
+    ? recipe.missingIngredients
+        .filter((item) => typeof item === "string" && item.trim())
+        .map((name, index) => ({
+          id: `missing-${index}-${name.trim().toLowerCase()}`,
+          name: name.trim(),
+          quantity: "",
+          image: null,
+          inStock: false,
+        }))
+    : [];
+
+  return [...usedIngredients, ...missingIngredients];
 }
 
 function pickRecipeImage(recipe) {
@@ -165,6 +246,13 @@ function pickRecipeImage(recipe) {
 
 function enrichRecipe(recipe, index) {
   const image = pickRecipeImage(recipe);
+  const difficulty = normalizeDifficultyLabel(recipe.difficulty);
+  const difficultyLevel = normalizeDifficultyLevel(recipe.difficulty);
+  const time = normalizeTimeString(recipe.time, recipe);
+  const servings = normalizeServings(recipe.servings);
+  const instructions = Array.isArray(recipe.steps) ? recipe.steps : [];
+  const imageUrl = recipe.imageUrl || image.imageUrl;
+  const ingredients = buildIngredients(recipe);
 
   return {
     id:
@@ -173,12 +261,18 @@ function enrichRecipe(recipe, index) {
         : `recipe-${index + 1}-${hashText(recipe.title || String(index))}`,
     title: recipe.title,
     description: recipe.description,
+    time,
+    servings,
+    difficulty,
+    difficultyLevel,
+    image: imageUrl,
+    ingredients,
+    instructions,
     whyRecommended: recipe.whyRecommended,
-    difficulty: recipe.difficulty,
     ingredientsUsed: recipe.ingredientsUsed,
     missingIngredients: recipe.missingIngredients,
-    steps: recipe.steps,
-    imageUrl: recipe.imageUrl || image.imageUrl,
+    steps: instructions,
+    imageUrl,
     imageAlt: recipe.imageAlt || `${recipe.title} - ${image.imageAlt}`,
   };
 }
@@ -214,6 +308,8 @@ function getFallbackRecipes(normalizedItems) {
       description: "A quick omelette that helps use up eggs and spinach.",
       whyRecommended:
         "It uses ingredients commonly found in the pantry and is fast to cook.",
+      time: "15 min",
+      servings: 1,
       difficulty: 1,
       ingredientsUsed: ["eggs", "spinach"],
       missingIngredients: hasCheese ? [] : ["cheese (optional)"],
@@ -238,6 +334,8 @@ function getFallbackRecipes(normalizedItems) {
       description: "Simple French toast using bread, eggs, and milk.",
       whyRecommended:
         "It uses multiple pantry staples and is easy for a student meal.",
+      time: "20 min",
+      servings: 2,
       difficulty: 2,
       ingredientsUsed: ["bread", "eggs", "milk"],
       missingIngredients: ["cinnamon or syrup (optional)"],
@@ -264,6 +362,8 @@ function getFallbackRecipes(normalizedItems) {
       description: "A fast fried rice using cooked rice and eggs.",
       whyRecommended:
         "It is simple, flexible, and works well with leftover ingredients.",
+      time: "20 min",
+      servings: 2,
       difficulty: 2,
       ingredientsUsed: ["rice", "eggs"],
       missingIngredients: ["green onion", "soy sauce"],
@@ -289,6 +389,8 @@ function getFallbackRecipes(normalizedItems) {
       description: "A quick chicken skillet with pantry basics.",
       whyRecommended:
         "It helps use chicken before it expires and keeps the recipe practical.",
+      time: "25 min",
+      servings: 2,
       difficulty: 2,
       ingredientsUsed: ["chicken"],
       missingIngredients: ["salt", "pepper", "garlic"],
@@ -309,6 +411,8 @@ function getFallbackRecipes(normalizedItems) {
       description: "A fast yogurt bowl topped with fruit.",
       whyRecommended:
         "It uses perishable dairy and fruit with almost no prep time.",
+      time: "10 min",
+      servings: 1,
       difficulty: 1,
       ingredientsUsed: ["yogurt", "fruit"],
       missingIngredients: ["granola or honey (optional)"],
@@ -327,6 +431,8 @@ function getFallbackRecipes(normalizedItems) {
       description: "A flexible bowl meal using whatever ingredients are available.",
       whyRecommended:
         "It is a safe fallback recipe when the AI service is unavailable.",
+      time: "15 min",
+      servings: 1,
       difficulty: 1,
       ingredientsUsed: normalizedItems
         .slice(0, 3)
@@ -362,11 +468,18 @@ function validateRecipeShape(parsed) {
       recipe.title.trim().length > 0 &&
       typeof recipe.description === "string" &&
       recipe.description.trim().length > 0 &&
+      typeof recipe.time === "string" &&
+      recipe.time.trim().length > 0 &&
+      typeof recipe.servings === "number" &&
+      Number.isFinite(recipe.servings) &&
+      recipe.servings > 0 &&
       typeof recipe.whyRecommended === "string" &&
       recipe.whyRecommended.trim().length > 0 &&
-      Number.isInteger(recipe.difficulty) &&
-      recipe.difficulty >= 1 &&
-      recipe.difficulty <= 5 &&
+      ((typeof recipe.difficulty === "string" &&
+        ["easy", "medium", "hard"].includes(recipe.difficulty.trim().toLowerCase())) ||
+        (Number.isInteger(recipe.difficulty) &&
+          recipe.difficulty >= 1 &&
+          recipe.difficulty <= 5)) &&
       Array.isArray(recipe.ingredientsUsed) &&
       recipe.ingredientsUsed.every(
         (ingredient) =>
@@ -422,17 +535,14 @@ ${JSON.stringify(normalizedItems, null, 2)}
 Instructions:
 - Recommend exactly 6 recipes.
 - Prioritize ingredients with status "expiring_soon" or "expiring soon".
+- Use expiryDate, purchaseDate, and daysLeft to reason about freshness when helpful.
 - Prefer easy and practical recipes for college students.
 - Prefer recipes that use many existing pantry items.
 - Keep recipes realistic and simple enough to cook at home.
+- Include an estimated cooking time in a short string like "15 min".
+- Include servings as a positive integer.
 - If ingredients are missing, include them in missingIngredients.
-- Add a difficulty field as an integer from 1 to 5.
-- Difficulty meaning:
-  1 = very easy
-  2 = easy
-  3 = medium
-  4 = hard
-  5 = very hard
+- Set difficulty to one of: "Easy", "Medium", or "Hard".
 - Steps should be clear, sequential, and easy to follow one by one in a mobile app.
 - Include as many steps as needed for the recipe.
 - Each step should describe one clear action or a very small grouped action.
@@ -446,8 +556,10 @@ Return this exact structure:
     {
       "title": "string",
       "description": "string",
+      "time": "15 min",
+      "servings": 1,
       "whyRecommended": "string",
-      "difficulty": 1,
+      "difficulty": "Easy",
       "ingredientsUsed": ["string"],
       "missingIngredients": ["string"],
       "steps": ["string"]

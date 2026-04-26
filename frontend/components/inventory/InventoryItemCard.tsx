@@ -72,7 +72,7 @@ export function InventoryItemCard({
       <View style={styles.row}>
         {item.imageUrl ? (
           <ExpoImage
-            source={item.imageUrl}
+            source={{ uri: item.imageUrl }}
             style={styles.itemImage}
             contentFit="contain"
             cachePolicy="memory-disk"

@@ -55,13 +55,20 @@ function normalizeItem(item) {
   const normalizedExpiryDate = new Date(item.expiryDate)
     .toISOString()
     .split("T")[0];
+  const normalizedPurchaseDate =
+    item.purchaseDate && !Number.isNaN(new Date(item.purchaseDate).getTime())
+      ? new Date(item.purchaseDate).toISOString().split("T")[0]
+      : null;
 
   return {
     name: String(item.name).trim(),
     category: String(item.category).trim(),
     quantity: Number(item.quantity),
     expiryDate: normalizedExpiryDate,
-    status: calculateStatus(normalizedExpiryDate),
+    purchaseDate: normalizedPurchaseDate,
+    imageUrl: item.imageUrl || null,
+    unit: item.unit || null,
+    source: item.source || null,
     createdAt: item.createdAt || new Date().toISOString(),
   };
 }

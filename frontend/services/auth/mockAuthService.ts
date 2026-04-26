@@ -1,9 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from './types';
 import type { AuthService } from './authService';
 import { isValidEmail } from '@/utils/validators/authValidators';
 
 const SESSION_KEY = '@vesta/auth/session';
+let inMemorySession: Session | null = null;
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -15,21 +15,15 @@ function createSession(email: string): Session {
 
 export const mockAuthService: AuthService = {
   async getSession() {
-    const raw = await AsyncStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(raw) as Partial<Session>;
-      if (
-        typeof parsed?.userId === 'string' &&
-        typeof parsed?.email === 'string' &&
-        isValidEmail(parsed.email)
-      ) {
-        return { userId: parsed.userId, email: parsed.email };
-      }
-      return null;
-    } catch {
-      return null;
+    if (
+      inMemorySession &&
+      typeof inMemorySession.userId === 'string' &&
+      typeof inMemorySession.email === 'string' &&
+      isValidEmail(inMemorySession.email)
+    ) {
+      return inMemorySession;
     }
+    return null;
   },
 
   async signIn(email, password) {
@@ -49,7 +43,7 @@ export const mockAuthService: AuthService = {
     }
 
     const session = createSession(trimmedEmail);
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    inMemorySession = session;
     return session;
   },
 
@@ -68,7 +62,7 @@ export const mockAuthService: AuthService = {
     }
 
     const session = createSession(trimmedEmail);
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    inMemorySession = session;
     return session;
   },
 
@@ -76,7 +70,7 @@ export const mockAuthService: AuthService = {
     await delay(2000);
     const email = 'google.user@example.com';
     const session = createSession(email);
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    inMemorySession = session;
     return session;
   },
 
@@ -84,7 +78,7 @@ export const mockAuthService: AuthService = {
     await delay(2000);
     const email = 'apple.user@example.com';
     const session = createSession(email);
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    inMemorySession = session;
     return session;
   },
 
@@ -99,7 +93,7 @@ export const mockAuthService: AuthService = {
   },
 
   async signOut() {
-    await AsyncStorage.removeItem(SESSION_KEY);
+    inMemorySession = null;
   },
 };
 

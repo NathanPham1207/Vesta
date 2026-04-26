@@ -1,4 +1,6 @@
-import { subscribeInventory, InventoryItem as ApiInventoryItem } from '@/services/auth/inventoryApi';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
+import { getInventory, InventoryItem as ApiInventoryItem } from '@/services/auth/inventoryApi';
 import {
   addShoppingListItem,
   clearPurchasedShoppingItems,
@@ -10,7 +12,6 @@ import {
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-// Re-export API type so consumers can import InventoryItem from this context
 export type { ApiInventoryItem as InventoryItem };
 export type { ShoppingListItem };
 
@@ -39,6 +40,8 @@ const InventoryContext = createContext<InventoryContextType | undefined>(undefin
 const getDateString = () => new Date().toISOString().split('T')[0];
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  const { expiryWarningDays, lowStockThreshold } = useSettings();
   const [inventory, setInventory] = useState<ApiInventoryItem[]>([]);
   const [bookmarkedRecipes, setBookmarkedRecipes] = useState<string[]>([]);
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
@@ -50,13 +53,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const shoppingListRef = useRef<ShoppingListItem[]>([]);
 
-  // Subscribe to real-time inventory updates from Firestore
   useEffect(() => {
-    const unsubscribe = subscribeInventory((items) => setInventory(items));
-    return unsubscribe;
-  }, []);
+    if (!isAuthenticated) {
+      setInventory([]);
+      return;
+    }
 
-  // Subscribe to real-time shopping list updates from Firestore
+    getInventory()
+      .then((items) => setInventory(items))
+      .catch((err) => console.error('InventoryContext: failed to load inventory', err));
+  }, [isAuthenticated]);
+
   useEffect(() => {
     const unsubscribe = subscribeShoppingList((items) => {
       setShoppingList(items);
@@ -95,7 +102,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const cookRecipe = (recipeId: string, matchPercentage: number) => {
     const pointsToAdd = Math.floor(matchPercentage * 10);
-    setUserRank(prev => ({
+    setUserRank((prev) => ({
       ...prev,
       points: prev.points + pointsToAdd,
       cookedRecipes: [...prev.cookedRecipes, recipeId],
@@ -103,16 +110,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     Alert.alert('Recipe Cooked!', `You earned ${pointsToAdd} points!`);
   };
 
-  // Auto-sync: add items to shopping list when quantity < 2, or status is expiring_soon/expired.
-  // Re-evaluates every time inventory changes. Will not add duplicates.
   useEffect(() => {
     if (inventory.length === 0) return;
 
     const needsRestock = inventory.filter(
       (item) =>
-        item.quantity < 2 ||
-        item.status === 'expiring_soon' ||
-        item.status === 'expired',
+        item.quantity < lowStockThreshold ||
+        item.status === 'expired' ||
+        (item.daysLeft != null && item.daysLeft <= expiryWarningDays),
     );
 
     needsRestock.forEach((invItem) => {
@@ -131,7 +136,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         isPurchased: false,
       }).catch((err) => console.error('Failed to auto-add shopping list item', err));
     });
-  }, [inventory]);
+  }, [expiryWarningDays, inventory, lowStockThreshold]);
 
   return (
     <InventoryContext.Provider

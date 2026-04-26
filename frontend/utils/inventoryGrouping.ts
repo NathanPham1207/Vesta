@@ -104,6 +104,7 @@ export function groupInventoryItems(items: InventoryItem[]): CategoryInventoryIt
       category: rawItem.category,
       quantity: rawItem.quantity,
       expiryDate: rawItem.expiryDate ?? '',
+      imageUrl: rawItem.imageUrl ?? null,
       daysUntilExpiry: rawItem.daysUntilExpiry ?? undefined,
       status: normalizeLotStatus(rawItem.status),
       createdAt: rawItem.createdAt,
@@ -134,6 +135,10 @@ export function groupInventoryItems(items: InventoryItem[]): CategoryInventoryIt
       )[0];
 
       const nearestExpiryDate = nearestLot.expiryDate;
+      const imageUrl =
+        nearestLot.imageUrl ??
+        lots.find((lot) => typeof lot.imageUrl === 'string' && lot.imageUrl.trim())?.imageUrl ??
+        null;
       const daysLeft = resolveDaysUntilExpiry(nearestLot);
       const name = titleCase(normalizedName);
 
@@ -145,6 +150,7 @@ export function groupInventoryItems(items: InventoryItem[]): CategoryInventoryIt
         categoryId: categoryToId(category),
         totalQuantity,
         nearestExpiryDate,
+        imageUrl,
         quantityLabel: `${totalQuantity} item${totalQuantity === 1 ? '' : 's'}`,
         daysLeft,
         status: statusFromDaysLeft(daysLeft),

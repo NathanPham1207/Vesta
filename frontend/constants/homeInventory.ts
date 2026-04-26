@@ -36,6 +36,7 @@ export interface InventoryLotItem {
   category: string;
   quantity: number;
   expiryDate: string;
+  imageUrl?: string | null;
   daysUntilExpiry?: number;
   status?: "fresh" | "expiring soon" | "expiring_soon" | "expired";
   createdAt?: string;
@@ -54,6 +55,7 @@ export interface CategoryInventoryItem {
   categoryId: string;
   totalQuantity: number;
   nearestExpiryDate: string;
+  imageUrl?: string | null;
   quantityLabel: string;
   daysLeft: number;
   status: InventoryFreshnessStatus;
@@ -64,6 +66,7 @@ export interface CategoryInventoryItem {
 export interface AttentionInventoryItem {
   id: string;
   name: string;
+  imageUrl?: string | null;
   categoryId: string;
   categoryLabel: string;
   statusLine: string;
@@ -180,6 +183,7 @@ export function toAttentionInventoryItem(
   return {
     id: item.id,
     name: item.name,
+    imageUrl: item.imageUrl ?? null,
     categoryId: item.categoryId,
     categoryLabel: categoryTitle.toLowerCase(),
     statusLine: formatCategoryItemDetail(item),

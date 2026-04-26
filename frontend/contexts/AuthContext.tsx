@@ -12,6 +12,7 @@ export interface AuthUser {
 }
 
 interface AuthContextType {
+  status: 'authenticated' | 'unauthenticated';
   isAuthenticated: boolean;
   user: AuthUser | null;
   signIn: (email: string, password: string) => Promise<SignInResult>;
@@ -32,6 +33,7 @@ const MIN_PASSWORD_LENGTH = 8;
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const status = isAuthenticated ? 'authenticated' : 'unauthenticated';
 
   const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
     const e = email.trim();
@@ -110,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, user, signIn, signUp, signOut, updateName, updatePassword }}
+      value={{ status, isAuthenticated, user, signIn, signUp, signOut, updateName, updatePassword }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,4 +1,4 @@
-export const BASE_URL = "https://taillessly-uncastled-lasonya.ngrok-free.dev";
+export const BASE_URL = "https://steadfast-spoon-credible.ngrok-free.dev";
 
 export const COMMON_HEADERS = {
   Accept: "application/json",

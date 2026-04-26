@@ -1,21 +1,9 @@
 import { APP_USER_ID } from '@/constants/appUser';
-import { getFirestoreDb } from '@/services/firestore/client';
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  type QueryDocumentSnapshot,
-  type Timestamp,
-} from 'firebase/firestore';
+import { BASE_URL, COMMON_HEADERS, JSON_HEADERS } from '@/services/auth/apiConfig';
+import { resolveInventoryImageSource } from '@/utils/inventoryImages';
 
-export type InventoryStatus = "fresh" | "expiring_soon" | "expired";
-export type InventorySource = "manual" | "scan";
+export type InventoryStatus = 'fresh' | 'expiring_soon' | 'expired';
+export type InventorySource = 'manual' | 'scan';
 
 export type InventoryItem = {
   id?: string;
@@ -33,7 +21,8 @@ export type InventoryItem = {
   createdAt?: string;
 };
 
-type InventoryDoc = {
+type InventoryApiItem = {
+  id?: unknown;
   name?: unknown;
   category?: unknown;
   quantity?: unknown;
@@ -43,98 +32,149 @@ type InventoryDoc = {
   unit?: unknown;
   source?: unknown;
   daysUntilExpiry?: unknown;
+  daysLeft?: unknown;
   status?: unknown;
-  createdAt?: Timestamp | null;
+  createdAt?: unknown;
 };
 
-function toIsoDate(value: unknown): string | undefined {
+type InventoryListResponse = {
+  success?: unknown;
+  message?: unknown;
+  items?: unknown;
+};
+
+type InventoryMutationResponse = {
+  success?: unknown;
+  message?: unknown;
+  items?: unknown;
+  id?: unknown;
+};
+
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const rawText = await response.text();
+
+  try {
+    return JSON.parse(rawText) as T;
+  } catch {
+    const preview = rawText.slice(0, 160).trim();
+    throw new Error(
+      preview
+        ? `Inventory API returned non-JSON response: ${preview}`
+        : 'Inventory API returned an empty or invalid response.',
+    );
+  }
+}
+
+function toIsoDate(value: unknown): string | null {
   if (typeof value !== 'string' || !value.trim()) {
-    return undefined;
+    return null;
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return undefined;
+    return null;
   }
 
   return date.toISOString();
 }
 
-function calculateDaysUntilExpiry(expiryDate: string): number {
-  const expiryTime = new Date(expiryDate).getTime();
-  const now = Date.now();
-  return Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24));
-}
-
-function normalizeStatus(rawStatus: unknown, daysUntilExpiry: number): InventoryStatus {
-  if (rawStatus === 'expired') return 'expired';
-  if (rawStatus === 'expiring_soon' || rawStatus === 'expiring soon') return 'expiring_soon';
-  if (rawStatus === 'fresh') return 'fresh';
-
-  if (daysUntilExpiry < 0) return 'expired';
-  if (daysUntilExpiry <= 3) return 'expiring_soon';
-  return 'fresh';
-}
-
-function toInventoryItem(snapshot: QueryDocumentSnapshot<InventoryDoc>): InventoryItem | null {
-  const data = snapshot.data();
-  const name = typeof data.name === 'string' ? data.name.trim() : '';
-  const category = typeof data.category === 'string' ? data.category.trim() : 'Misc';
-  const quantity = typeof data.quantity === 'number' ? data.quantity : Number(data.quantity ?? 1);
-  const expiryDate = toIsoDate(data.expiryDate);
-  const imageUrl = typeof data.imageUrl === 'string' ? data.imageUrl : null;
-  const purchaseDate = toIsoDate(data.purchaseDate);
-  const unit = typeof data.unit === 'string' ? data.unit : null;
-  const source = data.source === 'manual' || data.source === 'scan' ? data.source : null;
-
-  if (!name || !expiryDate) {
+function calculateDaysUntilExpiry(expiryDate: string | null): number | null {
+  if (!expiryDate) {
     return null;
   }
 
-  const resolvedQuantity = Number.isFinite(quantity) ? Math.max(1, quantity) : 1;
-  const daysUntilExpiry = calculateDaysUntilExpiry(expiryDate);
+  const expiryTime = new Date(expiryDate).getTime();
+  if (Number.isNaN(expiryTime)) {
+    return null;
+  }
+
+  return Math.ceil((expiryTime - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+function normalizeStatus(rawStatus: unknown, daysLeft: number | null): InventoryStatus {
+  if (rawStatus === 'expired') return 'expired';
+  if (rawStatus === 'expiring_soon' || rawStatus === 'expiring soon') return 'expiring_soon';
+  if (rawStatus === 'fresh' || rawStatus === 'good') return 'fresh';
+
+  if (daysLeft != null) {
+    if (daysLeft < 0) return 'expired';
+    if (daysLeft <= 3) return 'expiring_soon';
+  }
+
+  return 'fresh';
+}
+
+function toInventoryItem(raw: InventoryApiItem): InventoryItem | null {
+  const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+  if (!name) {
+    return null;
+  }
+
+  const expiryDate = toIsoDate(raw.expiryDate);
+  const daysLeft =
+    typeof raw.daysLeft === 'number' && Number.isFinite(raw.daysLeft)
+      ? raw.daysLeft
+      : calculateDaysUntilExpiry(expiryDate);
 
   return {
-    id: snapshot.id,
+    id: typeof raw.id === 'string' ? raw.id : undefined,
     name,
-    category: category || 'Misc',
-    quantity: resolvedQuantity,
+    category: typeof raw.category === 'string' && raw.category.trim() ? raw.category : 'Misc',
+    quantity:
+      typeof raw.quantity === 'number' && Number.isFinite(raw.quantity)
+        ? raw.quantity
+        : Number(raw.quantity ?? 1),
     expiryDate,
-    imageUrl,
-    purchaseDate: purchaseDate ?? null,
-    unit,
-    source,
+    imageUrl: resolveInventoryImageSource(
+      name,
+      typeof raw.imageUrl === 'string' ? raw.imageUrl : null,
+    ),
+    purchaseDate: toIsoDate(raw.purchaseDate),
+    unit: typeof raw.unit === 'string' ? raw.unit : null,
+    source: raw.source === 'manual' || raw.source === 'scan' ? raw.source : null,
     daysUntilExpiry:
-      typeof data.daysUntilExpiry === 'number' && Number.isFinite(data.daysUntilExpiry)
-        ? data.daysUntilExpiry
-        : daysUntilExpiry,
-    daysLeft: daysUntilExpiry,
-    status: normalizeStatus(data.status, daysUntilExpiry),
-    createdAt: data.createdAt?.toDate().toISOString(),
+      typeof raw.daysUntilExpiry === 'number' && Number.isFinite(raw.daysUntilExpiry)
+        ? raw.daysUntilExpiry
+        : daysLeft,
+    daysLeft,
+    status: normalizeStatus(raw.status, daysLeft),
+    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
   };
 }
 
-function inventoryCollection() {
-  const db = getFirestoreDb();
-  return collection(db, 'users', APP_USER_ID, 'pantryItems');
+function normalizePayloadItems(items: InventoryItem[]) {
+  return items.map((item) => ({
+    name: item.name,
+    category: item.category,
+    quantity: item.quantity,
+    expiryDate: item.expiryDate,
+    imageUrl: item.imageUrl ?? null,
+    purchaseDate: item.purchaseDate ?? null,
+    unit: item.unit ?? null,
+    source: item.source ?? null,
+    createdAt: item.createdAt ?? null,
+  }));
 }
 
 export async function getInventory(): Promise<InventoryItem[]> {
-  const snapshots = await getDocs(query(inventoryCollection(), orderBy('createdAt', 'desc')));
-
-  return snapshots.docs
-    .map((snapshot) => toInventoryItem(snapshot as QueryDocumentSnapshot<InventoryDoc>))
-    .filter((item): item is InventoryItem => item !== null);
-}
-
-export function subscribeInventory(callback: (items: InventoryItem[]) => void): () => void {
-  const q = query(inventoryCollection(), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snapshot) => {
-    const items = snapshot.docs
-      .map((snapshot) => toInventoryItem(snapshot as QueryDocumentSnapshot<InventoryDoc>))
-      .filter((item): item is InventoryItem => item !== null);
-    callback(items);
+  const response = await fetch(`${BASE_URL}/inventory/${encodeURIComponent(APP_USER_ID)}`, {
+    method: 'GET',
+    headers: COMMON_HEADERS,
   });
+
+  const data = await parseJsonResponse<InventoryListResponse>(response);
+
+  if (!response.ok || data.success !== true) {
+    throw new Error(
+      typeof data.message === 'string' ? data.message : 'Failed to load inventory.',
+    );
+  }
+
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  return items
+    .map((item) => toInventoryItem(item as InventoryApiItem))
+    .filter((item): item is InventoryItem => item !== null);
 }
 
 export async function saveInventory(payload: { items: InventoryItem[] }) {
@@ -142,47 +182,23 @@ export async function saveInventory(payload: { items: InventoryItem[] }) {
     throw new Error('No inventory items to save.');
   }
 
-  const collectionRef = inventoryCollection();
-  const writeResults = await Promise.all(
-    payload.items.map(async (item) => {
-      const name = item.name?.trim();
-      if (!name) {
-        throw new Error('Inventory item name is required.');
-      }
-
-      const quantity = Number.isFinite(item.quantity) ? Math.max(1, item.quantity) : 1;
-      const expiryDate = toIsoDate(item.expiryDate);
-      const purchaseDate = toIsoDate(item.purchaseDate) ?? new Date().toISOString();
-
-      if (!expiryDate) {
-        throw new Error(`Inventory item "${name}" has an invalid expiry date.`);
-      }
-
-      const daysUntilExpiry = calculateDaysUntilExpiry(expiryDate);
-      const status = normalizeStatus(item.status, daysUntilExpiry);
-      const source = item.source === 'scan' ? 'scan' : 'manual';
-
-      return addDoc(collectionRef, {
-        name,
-        category: item.category?.trim() || 'Misc',
-        quantity,
-        expiryDate,
-        purchaseDate,
-        unit: item.unit ?? null,
-        source,
-        daysUntilExpiry,
-        status,
-        imageUrl: item.imageUrl ?? null,
-        createdAt: serverTimestamp(),
-      });
+  const response = await fetch(`${BASE_URL}/inventory/${encodeURIComponent(APP_USER_ID)}`, {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({
+      items: normalizePayloadItems(payload.items),
     }),
-  );
+  });
 
-  return {
-    success: true,
-    savedCount: writeResults.length,
-    ids: writeResults.map((result) => result.id),
-  };
+  const data = await parseJsonResponse<InventoryMutationResponse>(response);
+
+  if (!response.ok || data.success !== true) {
+    throw new Error(
+      typeof data.message === 'string' ? data.message : 'Failed to save inventory.',
+    );
+  }
+
+  return data;
 }
 
 export async function deleteInventory(itemId: string) {
@@ -190,7 +206,24 @@ export async function deleteInventory(itemId: string) {
     throw new Error('Missing inventory item ID.');
   }
 
-  const db = getFirestoreDb();
-  await deleteDoc(doc(db, 'users', APP_USER_ID, 'pantryItems', itemId));
-  return { success: true, id: itemId };
+  const response = await fetch(
+    `${BASE_URL}/inventory/${encodeURIComponent(APP_USER_ID)}/${encodeURIComponent(itemId)}`,
+    {
+      method: 'DELETE',
+      headers: COMMON_HEADERS,
+    },
+  );
+
+  const data = await parseJsonResponse<InventoryMutationResponse>(response);
+
+  if (!response.ok || data.success !== true) {
+    throw new Error(
+      typeof data.message === 'string' ? data.message : 'Failed to delete inventory item.',
+    );
+  }
+
+  return {
+    success: true,
+    id: typeof data.id === 'string' ? data.id : itemId,
+  };
 }

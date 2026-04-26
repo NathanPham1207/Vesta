@@ -72,7 +72,7 @@ function CategoryItemRow({
     <Pressable style={styles.itemCard} onPress={onPress}>
       {item.imageUrl ? (
         <ExpoImage
-          source={item.imageUrl}
+          source={{ uri: item.imageUrl }}
           style={styles.itemImage}
           contentFit="contain"
           cachePolicy="memory-disk"
@@ -202,7 +202,7 @@ export function CategoryDetailModal({
 
               {selectedItem?.imageUrl ? (
                 <ExpoImage
-                  source={selectedItem.imageUrl}
+                  source={{ uri: selectedItem.imageUrl }}
                   style={styles.detailImage}
                   contentFit="contain"
                   cachePolicy="memory-disk"
