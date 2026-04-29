@@ -2,6 +2,7 @@ import { COLORS } from '@/constants/colors';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
 import type { InventoryItem } from '@/services/auth/inventoryApi';
+import { buildInventoryImageFallback, resolveInventoryImageSource } from '@/utils/inventoryImages';
 import { Image as ExpoImage } from 'expo-image';
 import { Trash2 } from 'lucide-react-native';
 import React from 'react';
@@ -66,17 +67,34 @@ export function InventoryItemCard({
 }: InventoryItemCardProps) {
   const categoryLabel = item.category?.trim() || 'Misc';
   const chip = categoryChipStyle(categoryLabel);
+  const initialImageSource = resolveInventoryImageSource(item.name, item.imageUrl);
+  const [imageSource, setImageSource] = React.useState<string | null>(initialImageSource);
+
+  React.useEffect(() => {
+    setImageSource(resolveInventoryImageSource(item.name, item.imageUrl));
+  }, [item.imageUrl, item.name]);
+
+  const handleImageError = React.useCallback(() => {
+    const fallback = buildInventoryImageFallback(item.name);
+    if (fallback && fallback !== imageSource) {
+      setImageSource(fallback);
+      return;
+    }
+
+    setImageSource(null);
+  }, [imageSource, item.name]);
 
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        {item.imageUrl ? (
+        {imageSource ? (
           <ExpoImage
-            source={{ uri: item.imageUrl }}
+            source={{ uri: imageSource }}
             style={styles.itemImage}
             contentFit="contain"
             cachePolicy="memory-disk"
             transition={200}
+            onError={handleImageError}
           />
         ) : (
           <View style={styles.itemImagePlaceholder} />

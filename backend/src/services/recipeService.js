@@ -1,63 +1,189 @@
 const OpenAI = require("openai");
 
 const CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes
+const IMAGE_SELECTION_VERSION = 2;
 
 const IMAGE_LIBRARY = {
-  egg: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Cooked egg dish on a plate",
-  },
-  toast: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Toast plated for breakfast",
-  },
-  rice: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Rice-based home cooked dish",
-  },
-  pasta: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Pasta served in a bowl",
-  },
-  salad: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Fresh salad in a bowl",
-  },
-  soup: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1547592180-85f173990554?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Soup served in a ceramic bowl",
-  },
-  sandwich: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Sandwich stacked on a plate",
-  },
-  chicken: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Chicken entree plated for dinner",
-  },
-  fruit: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Fresh fruit arranged on a table",
-  },
-  yogurt: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Yogurt parfait with fruit",
-  },
-  default: {
-    imageUrl:
-      "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=80&auto=format&fit=crop",
-    imageAlt: "Cooked meal on a dining table",
-  },
+  egg: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Cooked egg dish on a plate",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1510693206972-df098062cb71?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Egg-based breakfast on a plate",
+    },
+  ],
+  toast: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Toast plated for breakfast",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Toasted bread served on a plate",
+    },
+  ],
+  rice: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Rice-based home cooked dish",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Warm rice bowl served for dinner",
+    },
+  ],
+  pasta: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Pasta served in a bowl",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Pasta dish plated for a meal",
+    },
+  ],
+  salad: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Fresh salad in a bowl",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Colorful vegetable salad",
+    },
+  ],
+  soup: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1547592180-85f173990554?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Soup served in a ceramic bowl",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1604908812215-0f3fcdc1b4b4?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Hot soup ready to serve",
+    },
+  ],
+  sandwich: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Sandwich stacked on a plate",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1553909489-cd47e0907980?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Fresh sandwich ready to eat",
+    },
+  ],
+  chicken: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Chicken entree plated for dinner",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Roasted chicken served with sides",
+    },
+  ],
+  seafood: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1559847844-5315695dadae?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Seafood entree plated for dinner",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Cooked salmon and seafood dish",
+    },
+  ],
+  beef: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1558030006-450675393462?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Beef entree plated for dinner",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1544025162-d76694265947?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Savory beef dish served hot",
+    },
+  ],
+  fruit: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Fresh fruit arranged on a table",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Fruit bowl arranged for breakfast",
+    },
+  ],
+  yogurt: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Yogurt parfait with fruit",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Yogurt bowl topped with fruit",
+    },
+  ],
+  smoothie: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Fruit smoothie in a glass",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Colorful smoothie drink on a table",
+    },
+  ],
+  bowl: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Prepared bowl meal with fresh ingredients",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Savory bowl meal served for lunch",
+    },
+  ],
+  default: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Cooked meal on a dining table",
+    },
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=80&auto=format&fit=crop",
+      imageAlt: "Prepared meal served on a table",
+    },
+  ],
 };
 
 let client = null;
@@ -127,6 +253,11 @@ function hashText(text) {
   return hash;
 }
 
+function selectImageVariant(key, seedText) {
+  const variants = IMAGE_LIBRARY[key] || IMAGE_LIBRARY.default;
+  return variants[hashText(seedText || key) % variants.length];
+}
+
 function normalizeDifficultyLabel(value) {
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
@@ -179,6 +310,28 @@ function normalizeServings(value) {
 }
 
 function buildIngredients(recipe) {
+  const buildIngredientImage = (name) => {
+    if (typeof name !== "string" || !name.trim()) {
+      return null;
+    }
+
+    const normalized = name
+      .trim()
+      .toLowerCase()
+      .replace(/\([^)]*\)/g, "")
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "_")
+      .trim();
+
+    if (!normalized) {
+      return null;
+    }
+
+    return `https://www.themealdb.com/images/ingredients/${encodeURIComponent(
+      normalized
+    )}-medium.png`;
+  };
+
   const usedIngredients = Array.isArray(recipe.ingredientsUsed)
     ? recipe.ingredientsUsed
         .filter((item) => typeof item === "string" && item.trim())
@@ -186,7 +339,7 @@ function buildIngredients(recipe) {
           id: `used-${index}-${name.trim().toLowerCase()}`,
           name: name.trim(),
           quantity: "",
-          image: null,
+          image: buildIngredientImage(name),
           inStock: true,
         }))
     : [];
@@ -198,7 +351,7 @@ function buildIngredients(recipe) {
           id: `missing-${index}-${name.trim().toLowerCase()}`,
           name: name.trim(),
           quantity: "",
-          image: null,
+          image: buildIngredientImage(name),
           inStock: false,
         }))
     : [];
@@ -207,41 +360,43 @@ function buildIngredients(recipe) {
 }
 
 function pickRecipeImage(recipe) {
-  const haystack = [
-    recipe.title,
-    recipe.description,
-    ...(Array.isArray(recipe.ingredientsUsed) ? recipe.ingredientsUsed : []),
-  ]
-    .join(" ")
-    .toLowerCase();
+  const titleText = String(recipe.title || "").toLowerCase();
+  const descriptionText = String(recipe.description || "").toLowerCase();
+  const ingredientText = Array.isArray(recipe.ingredientsUsed)
+    ? recipe.ingredientsUsed.join(" ").toLowerCase()
+    : "";
+  const haystack = [titleText, descriptionText, ingredientText].join(" ");
 
   const keywordOrder = [
-    { keyword: "omelette", key: "egg" },
-    { keyword: "egg", key: "egg" },
-    { keyword: "toast", key: "toast" },
-    { keyword: "rice", key: "rice" },
-    { keyword: "pasta", key: "pasta" },
-    { keyword: "salad", key: "salad" },
-    { keyword: "soup", key: "soup" },
-    { keyword: "sandwich", key: "sandwich" },
-    { keyword: "chicken", key: "chicken" },
-    { keyword: "banana", key: "fruit" },
-    { keyword: "berry", key: "fruit" },
-    { keyword: "fruit", key: "fruit" },
-    { keyword: "yogurt", key: "yogurt" },
+    { keywords: ["smoothie", "shake"], key: "smoothie" },
+    { keywords: ["yogurt"], key: "yogurt" },
+    { keywords: ["omelette", "omelet", "scramble"], key: "egg" },
+    { keywords: ["toast"], key: "toast" },
+    { keywords: ["sandwich", "burger", "wrap"], key: "sandwich" },
+    { keywords: ["salad"], key: "salad" },
+    { keywords: ["soup", "stew"], key: "soup" },
+    { keywords: ["pasta", "spaghetti", "penne", "mac"], key: "pasta" },
+    { keywords: ["fried rice", "rice bowl", "rice"], key: "rice" },
+    { keywords: ["salmon", "shrimp", "tuna", "cod", "seafood"], key: "seafood" },
+    { keywords: ["beef", "steak", "meatball"], key: "beef" },
+    { keywords: ["chicken"], key: "chicken" },
+    { keywords: ["fruit", "banana", "berry", "apple"], key: "fruit" },
+    { keywords: ["bowl"], key: "bowl" },
   ];
 
   for (const entry of keywordOrder) {
-    if (haystack.includes(entry.keyword)) {
-      return IMAGE_LIBRARY[entry.key];
+    if (entry.keywords.some((keyword) => titleText.includes(keyword))) {
+      return selectImageVariant(entry.key, recipe.title || haystack);
     }
   }
 
-  const libraryKeys = Object.keys(IMAGE_LIBRARY).filter((key) => key !== "default");
-  const selectedKey =
-    libraryKeys[hashText(haystack || recipe.title || "recipe") % libraryKeys.length];
+  for (const entry of keywordOrder) {
+    if (entry.keywords.some((keyword) => haystack.includes(keyword))) {
+      return selectImageVariant(entry.key, recipe.title || haystack);
+    }
+  }
 
-  return IMAGE_LIBRARY[selectedKey] || IMAGE_LIBRARY.default;
+  return selectImageVariant("default", recipe.title || haystack || "recipe");
 }
 
 function enrichRecipe(recipe, index) {
@@ -282,6 +437,7 @@ function buildResult(recipes, options = {}) {
     recipes: recipes.map(enrichRecipe),
     source: options.source || "fallback",
     fallback: Boolean(options.fallback),
+    imageSelectionVersion: IMAGE_SELECTION_VERSION,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -669,4 +825,5 @@ async function generateRecipes(pantryItems) {
 module.exports = {
   generateRecipes,
   isOpenAIConfigured,
+  IMAGE_SELECTION_VERSION,
 };

@@ -23,8 +23,6 @@ import {
   View,
 } from 'react-native';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function formatItemDetail(item: InventoryItem): string {
   const daysLeft = typeof item.daysLeft === 'number' ? item.daysLeft : item.daysUntilExpiry ?? 0;
   if (item.status === 'expired') {
@@ -47,8 +45,6 @@ function resolveStatusDotColor(item: InventoryItem): string {
   return COLORS.warning;
 }
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 interface CategoryDetailModalProps {
   visible: boolean;
   onClose: () => void;
@@ -56,8 +52,6 @@ interface CategoryDetailModalProps {
   items: InventoryItem[];
   onDeleteItem: (id: string) => void;
 }
-
-// ─── Subcomponents ───────────────────────────────────────────────────────────
 
 function CategoryItemRow({
   item,
@@ -92,8 +86,6 @@ function CategoryItemRow({
     </Pressable>
   );
 }
-
-// ─── Main Component ──────────────────────────────────────────────────────────
 
 export function CategoryDetailModal({
   visible,
@@ -185,7 +177,6 @@ export function CategoryDetailModal({
         </View>
       </View>
 
-      {/* Item detail modal */}
       <Modal
         visible={selectedItem !== null}
         transparent
@@ -241,8 +232,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   overlay: {

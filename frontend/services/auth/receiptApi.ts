@@ -1,16 +1,6 @@
 import { APP_USER_ID } from '@/constants/appUser';
 import type { ScanItem } from '@/services/auth/scanApi';
-import { getFirestoreDb } from '@/services/firestore/client';
-import {
-    addDoc,
-    collection,
-    getDocs,
-    orderBy,
-    query,
-    serverTimestamp,
-    type QueryDocumentSnapshot,
-    type Timestamp,
-} from 'firebase/firestore';
+import { BASE_URL, COMMON_HEADERS, JSON_HEADERS } from '@/services/auth/apiConfig';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,21 +30,44 @@ export type SaveReceiptPayload = {
   items: ScanItem[];
 };
 
-type ReceiptDoc = {
+type ReceiptApiItem = {
+  id?: unknown;
   storeName?: unknown;
   purchaseDate?: unknown;
   totalAmount?: unknown;
   itemCount?: unknown;
   imageType?: unknown;
   items?: unknown;
-  createdAt?: Timestamp | null;
+  createdAt?: unknown;
+};
+
+type ReceiptListResponse = {
+  success?: unknown;
+  message?: unknown;
+  receipts?: unknown;
+};
+
+type ReceiptMutationResponse = {
+  success?: unknown;
+  message?: unknown;
+  receipt?: unknown;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function receiptCollection() {
-  const db = getFirestoreDb();
-  return collection(db, 'users', APP_USER_ID, 'receipts');
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const rawText = await response.text();
+
+  try {
+    return JSON.parse(rawText) as T;
+  } catch {
+    const preview = rawText.slice(0, 160).trim();
+    throw new Error(
+      preview
+        ? `Receipt API returned non-JSON response: ${preview}`
+        : 'Receipt API returned an empty or invalid response.',
+    );
+  }
 }
 
 function calculateTotalAmount(items: ScanItem[]): number {
@@ -79,38 +92,51 @@ function normalizeItems(raw: unknown): ReceiptScannedItem[] {
     }));
 }
 
-function toReceiptItem(snapshot: QueryDocumentSnapshot<ReceiptDoc>): ReceiptItem | null {
-  const data = snapshot.data();
-  const storeName = typeof data.storeName === 'string' ? data.storeName.trim() : 'Unknown store';
-  const purchaseDate = typeof data.purchaseDate === 'string' ? data.purchaseDate : '';
-  const totalAmount = typeof data.totalAmount === 'number' ? data.totalAmount : 0;
-  const itemCount = typeof data.itemCount === 'number' ? data.itemCount : 0;
-  const imageType = typeof data.imageType === 'string' ? data.imageType : undefined;
-  const items = normalizeItems(data.items);
+function toReceiptItem(raw: ReceiptApiItem): ReceiptItem | null {
+  const storeName = typeof raw.storeName === 'string' ? raw.storeName.trim() : 'Unknown store';
+  const purchaseDate = typeof raw.purchaseDate === 'string' ? raw.purchaseDate : '';
+  const totalAmount = typeof raw.totalAmount === 'number' ? raw.totalAmount : 0;
+  const itemCount = typeof raw.itemCount === 'number' ? raw.itemCount : 0;
+  const imageType = typeof raw.imageType === 'string' ? raw.imageType : undefined;
+  const items = normalizeItems(raw.items);
 
   if (!purchaseDate) return null;
 
   return {
-    id: snapshot.id,
+    id: typeof raw.id === 'string' ? raw.id : `receipt-${purchaseDate}`,
     storeName,
     purchaseDate,
     totalAmount,
     itemCount,
     imageType,
     items,
-    createdAt: data.createdAt?.toDate().toISOString(),
+    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
   };
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export async function getReceipts(): Promise<ReceiptItem[]> {
-  const snapshots = await getDocs(
-    query(receiptCollection(), orderBy('createdAt', 'desc')),
+  const response = await fetch(
+    `${BASE_URL}/receipts/${encodeURIComponent(APP_USER_ID)}`,
+    {
+      method: 'GET',
+      headers: COMMON_HEADERS,
+    },
   );
 
-  return snapshots.docs
-    .map((s) => toReceiptItem(s as QueryDocumentSnapshot<ReceiptDoc>))
+  const data = await parseJsonResponse<ReceiptListResponse>(response);
+
+  if (!response.ok || data.success !== true) {
+    throw new Error(
+      typeof data.message === 'string' ? data.message : 'Failed to load receipts.',
+    );
+  }
+
+  const receipts = Array.isArray(data.receipts) ? data.receipts : [];
+
+  return receipts
+    .map((item) => toReceiptItem(item as ReceiptApiItem))
     .filter((item): item is ReceiptItem => item !== null);
 }
 
@@ -125,23 +151,35 @@ export async function saveReceipt(payload: SaveReceiptPayload): Promise<ReceiptI
     category: typeof item.category === 'string' ? item.category : 'Misc',
   }));
 
-  const docRef = await addDoc(receiptCollection(), {
-    storeName: payload.storeName.trim() || 'Unknown store',
-    purchaseDate: payload.purchaseDate,
-    totalAmount,
-    itemCount: payload.items.length,
-    imageType: payload.imageType ?? 'receipt',
-    items: serializedItems,
-    createdAt: serverTimestamp(),
-  });
+  const response = await fetch(
+    `${BASE_URL}/receipts/${encodeURIComponent(APP_USER_ID)}`,
+    {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        storeName: payload.storeName.trim() || 'Unknown store',
+        purchaseDate: payload.purchaseDate,
+        totalAmount,
+        itemCount: payload.items.length,
+        imageType: payload.imageType ?? 'receipt',
+        items: serializedItems,
+      }),
+    },
+  );
 
-  return {
-    id: docRef.id,
-    storeName: payload.storeName.trim() || 'Unknown store',
-    purchaseDate: payload.purchaseDate,
-    totalAmount,
-    itemCount: payload.items.length,
-    imageType: payload.imageType,
-    items: serializedItems,
-  };
+  const data = await parseJsonResponse<ReceiptMutationResponse>(response);
+
+  if (!response.ok || data.success !== true) {
+    throw new Error(
+      typeof data.message === 'string' ? data.message : 'Failed to save receipt.',
+    );
+  }
+
+  const receipt = toReceiptItem((data.receipt ?? {}) as ReceiptApiItem);
+
+  if (!receipt) {
+    throw new Error('Receipt API returned an invalid receipt payload.');
+  }
+
+  return receipt;
 }

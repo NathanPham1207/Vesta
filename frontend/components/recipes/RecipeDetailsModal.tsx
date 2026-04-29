@@ -91,11 +91,10 @@ export function RecipeDetailsModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, { maxHeight: maxModalH }]}
-          onPress={(e) => e.stopPropagation()}
-        >
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.sheetWrap} pointerEvents="box-none">
+          <View style={[styles.sheet, { maxHeight: maxModalH }]}>
           <Pressable
             style={styles.closeBtn}
             onPress={onClose}
@@ -110,6 +109,7 @@ export function RecipeDetailsModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
           >
             <Text style={styles.title}>{recipe.title}</Text>
 
@@ -175,8 +175,9 @@ export function RecipeDetailsModal({
               <Text style={styles.cookBtnText}>Start Cooking Mode</Text>
             </Pressable>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -189,9 +190,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
   },
-  sheet: {
+  sheetWrap: {
     width: '100%',
     maxWidth: 400,
+    zIndex: 1,
+  },
+  sheet: {
+    width: '100%',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
@@ -216,6 +221,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     paddingTop: SPACING.xl + 8,
     paddingBottom: SPACING.xl,
+    flexGrow: 1,
   },
   title: {
     fontSize: FONT_SIZE.sectionTitle,

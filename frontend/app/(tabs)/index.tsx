@@ -119,21 +119,19 @@ export default function HomeScreen() {
     if (!itemId) return;
     try {
       await deleteInventory(itemId);
-      // Xóa khỏi local state ngay, không cần refetch
       setRawInventoryLots((prev) => prev.filter((lot) => lot.id !== itemId));
     } catch (error) {
       console.error('Delete error:', error);
       Alert.alert('Error', 'Failed to delete inventory item.');
     }
   }, []);
-  
+
 
   const deleteAttentionItem = useCallback(
     async (groupId: string) => {
       const group = inventoryItems.find((item) => item.id === groupId);
       if (!group) return;
 
-      // Business rule: Expiring Soon delete removes one underlying lot, not the entire grouped row.
       const targetLot = getPriorityLotToDelete(group.lots);
       if (!targetLot?.id) {
         Alert.alert('Error', 'Unable to resolve a lot to delete.');

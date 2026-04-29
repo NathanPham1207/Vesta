@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const inventoryRoutes = require("./routes/inventoryRoutes");
 const receiptRoutes = require("./routes/receiptRoutes");
+const receiptDataRoutes = require("./routes/receiptDataRoutes");
 const recipeRoutes = require("./routes/recipeRoutes");
 
 const app = express();
@@ -22,6 +23,8 @@ app.get("/", (req, res) => {
 
 app.use("/inventory", inventoryRoutes);
 app.use("/scan/receipt", receiptRoutes);
+app.use("/receipts", receiptDataRoutes);
+app.use("/api/receipts", receiptDataRoutes);
 app.use("/recipes", recipeRoutes);
 app.use("/api/recipes", recipeRoutes);
 

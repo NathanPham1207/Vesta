@@ -1,6 +1,7 @@
 const {
   generateRecipes,
   isOpenAIConfigured,
+  IMAGE_SELECTION_VERSION,
 } = require("../services/recipeService");
 const { getInventoryItems } = require("../services/inventoryService");
 const { db, admin } = require("../config/firebase");
@@ -50,8 +51,11 @@ async function getRecipeRecommendations(req, res) {
           data.pantryKey === pantryKey &&
           Boolean(data.fallback) &&
           isOpenAIConfigured();
+        const shouldRefreshStaleImageCache =
+          data.pantryKey === pantryKey &&
+          (data.imageSelectionVersion || 1) !== IMAGE_SELECTION_VERSION;
 
-        if (shouldRefreshFallbackCache) {
+        if (shouldRefreshFallbackCache || shouldRefreshStaleImageCache) {
           await cacheRef.delete();
         } else if (data.pantryKey === pantryKey) {
           return res.status(200).json({
@@ -60,6 +64,7 @@ async function getRecipeRecommendations(req, res) {
             recipes: data.recipes,
             source: data.source || "cache",
             fallback: Boolean(data.fallback),
+            imageSelectionVersion: data.imageSelectionVersion || 1,
             generatedAt: data.generatedAt || null,
             message: data.message || undefined,
           });
@@ -81,6 +86,8 @@ async function getRecipeRecommendations(req, res) {
         recipes: result.recipes,
         source: result.source,
         fallback: Boolean(result.fallback),
+        imageSelectionVersion:
+          result.imageSelectionVersion || IMAGE_SELECTION_VERSION,
         message: result.message || null,
         generatedAt: result.generatedAt || new Date().toISOString(),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
