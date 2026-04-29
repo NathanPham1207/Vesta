@@ -58,8 +58,11 @@ function receiptCollection() {
 }
 
 function calculateTotalAmount(items: ScanItem[]): number {
-  return items.reduce((sum, item) =>
-    sum + (typeof item.price === 'number' ? item.price : 0), 0);
+  return items.reduce((sum, item) => {
+    const price = typeof item.price === 'number' ? item.price : 0;
+    const quantity = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+    return sum + price * quantity;
+  }, 0);
 }
 
 function normalizeItems(raw: unknown): ReceiptScannedItem[] {

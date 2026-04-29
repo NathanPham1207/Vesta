@@ -10,7 +10,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, ListRenderItem, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getRecipes } from '@/services/data/recipesApi';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 const FILTER_OPTIONS = [
   { id: 'all', label: 'All' },
@@ -20,6 +20,7 @@ const FILTER_OPTIONS = [
 ] as const;
 
 export default function RecipesScreen() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [filterId, setFilterId] = useState<string | null>('all');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -130,12 +131,12 @@ export default function RecipesScreen() {
         <View style={recipesScreenStyles.profileFixedLayer} pointerEvents="box-none">
           <Pressable
             style={recipesScreenStyles.profileBtn}
-            onPress={() => {}}
+            onPress={() => router.push('/profile')}
             accessibilityRole="button"
             accessibilityLabel="Profile"
-            hitSlop={8}
+            hitSlop={10}
           >
-            <Ionicons name="person" size={22} color={COLORS.surface} />
+            <Text style={recipesScreenStyles.profileBtnIcon}>👤</Text>
           </Pressable>
         </View>
 

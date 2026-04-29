@@ -108,21 +108,15 @@ export const recipesScreenStyles = StyleSheet.create({
     position: 'absolute',
     top: SPACING.sm,
     right: SPACING.lg,
-    width: RECIPES_PROFILE_BTN_SIZE,
-    height: RECIPES_PROFILE_BTN_SIZE,
-    borderRadius: RECIPES_PROFILE_BTN_SIZE / 2,
-    backgroundColor: COLORS.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.muted,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.12,
-        shadowRadius: 4,
-      },
-      android: { elevation: 4 },
-    }),
+  },
+  profileBtnIcon: {
+    fontSize: 18,
   },
   searchSpacing: {
     marginBottom: SPACING.sm,

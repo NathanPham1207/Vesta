@@ -6,6 +6,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -124,6 +125,16 @@ export async function getInventory(): Promise<InventoryItem[]> {
   return snapshots.docs
     .map((snapshot) => toInventoryItem(snapshot as QueryDocumentSnapshot<InventoryDoc>))
     .filter((item): item is InventoryItem => item !== null);
+}
+
+export function subscribeInventory(callback: (items: InventoryItem[]) => void): () => void {
+  const q = query(inventoryCollection(), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const items = snapshot.docs
+      .map((snapshot) => toInventoryItem(snapshot as QueryDocumentSnapshot<InventoryDoc>))
+      .filter((item): item is InventoryItem => item !== null);
+    callback(items);
+  });
 }
 
 export async function saveInventory(payload: { items: InventoryItem[] }) {

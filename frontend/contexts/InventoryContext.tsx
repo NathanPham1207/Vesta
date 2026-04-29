@@ -1,10 +1,18 @@
-import { getInventory, InventoryItem as ApiInventoryItem } from '@/services/auth/inventoryApi';
-import { useSettings } from '@/contexts/SettingsContext';
+import { subscribeInventory, InventoryItem as ApiInventoryItem } from '@/services/auth/inventoryApi';
+import {
+  addShoppingListItem,
+  clearPurchasedShoppingItems,
+  removeShoppingListItem,
+  ShoppingListItem,
+  subscribeShoppingList,
+  toggleShoppingListItemPurchased,
+} from '@/services/auth/shoppingListApi';
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 // Re-export API type so consumers can import InventoryItem from this context
 export type { ApiInventoryItem as InventoryItem };
+export type { ShoppingListItem };
 
 export type RankTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond' | 'Master';
 
@@ -12,17 +20,6 @@ export interface UserRank {
   points: number;
   tier: RankTier;
   cookedRecipes: string[];
-}
-
-export interface ShoppingListItem {
-  id: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  category: string;
-  addedDate: string;
-  isPurchased: boolean;
-  autoAdded: boolean;
 }
 
 interface InventoryContextType {
@@ -42,7 +39,6 @@ const InventoryContext = createContext<InventoryContextType | undefined>(undefin
 const getDateString = () => new Date().toISOString().split('T')[0];
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const { expiryWarningDays, lowStockThreshold } = useSettings();
   const [inventory, setInventory] = useState<ApiInventoryItem[]>([]);
   const [bookmarkedRecipes, setBookmarkedRecipes] = useState<string[]>([]);
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
@@ -52,32 +48,49 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     cookedRecipes: [],
   });
 
-  const autoAddedItemsRef = useRef<Set<string>>(new Set());
+  const shoppingListRef = useRef<ShoppingListItem[]>([]);
 
-  // Fetch real inventory from Firestore on mount
+  // Subscribe to real-time inventory updates from Firestore
   useEffect(() => {
-    getInventory()
-      .then(items => setInventory(items))
-      .catch(err => console.error('InventoryContext: failed to load inventory', err));
+    const unsubscribe = subscribeInventory((items) => setInventory(items));
+    return unsubscribe;
+  }, []);
+
+  // Subscribe to real-time shopping list updates from Firestore
+  useEffect(() => {
+    const unsubscribe = subscribeShoppingList((items) => {
+      setShoppingList(items);
+      shoppingListRef.current = items;
+    });
+    return unsubscribe;
   }, []);
 
   const addToShoppingList = (item: Omit<ShoppingListItem, 'id' | 'addedDate' | 'isPurchased'>) => {
-    const newId = `sl-${Date.now()}`;
-    setShoppingList(prev => [...prev, { ...item, id: newId, addedDate: getDateString(), isPurchased: false }]);
+    addShoppingListItem({
+      ...item,
+      addedDate: getDateString(),
+      isPurchased: false,
+    }).catch((err) => console.error('Failed to add shopping list item', err));
   };
 
   const removeFromShoppingList = (id: string) => {
-    setShoppingList(prev => prev.filter(item => item.id !== id));
+    removeShoppingListItem(id).catch((err) =>
+      console.error('Failed to remove shopping list item', err),
+    );
   };
 
   const toggleShoppingListItem = (id: string) => {
-    setShoppingList(prev => prev.map(i =>
-      i.id === id ? { ...i, isPurchased: !i.isPurchased } : i
-    ));
+    const item = shoppingList.find((i) => i.id === id);
+    if (!item) return;
+    toggleShoppingListItemPurchased(id, !item.isPurchased).catch((err) =>
+      console.error('Failed to toggle shopping list item', err),
+    );
   };
 
   const clearPurchasedItems = () => {
-    setShoppingList(prev => prev.filter(item => !item.isPurchased));
+    clearPurchasedShoppingItems(shoppingList).catch((err) =>
+      console.error('Failed to clear purchased items', err),
+    );
   };
 
   const cookRecipe = (recipeId: string, matchPercentage: number) => {
@@ -90,37 +103,34 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     Alert.alert('Recipe Cooked!', `You earned ${pointsToAdd} points!`);
   };
 
-  // Auto-sync: add to shopping list items that are low stock, expiring soon, or expired.
-  // Thresholds are driven by user settings.
+  // Auto-sync: add items to shopping list when quantity < 2, or status is expiring_soon/expired.
+  // Re-evaluates every time inventory changes. Will not add duplicates.
   useEffect(() => {
-    const needsRestock = inventory.filter(item =>
-      item.quantity < lowStockThreshold ||
-      item.status === 'expired' ||
-      (item.daysLeft != null && item.daysLeft <= expiryWarningDays)
+    if (inventory.length === 0) return;
+
+    const needsRestock = inventory.filter(
+      (item) =>
+        item.quantity < 2 ||
+        item.status === 'expiring_soon' ||
+        item.status === 'expired',
     );
 
-    const itemsToAdd: ShoppingListItem[] = [];
-
     needsRestock.forEach((invItem) => {
-      const itemKey = invItem.name.toLowerCase();
-      if (!autoAddedItemsRef.current.has(itemKey)) {
-        itemsToAdd.push({
-          id: `auto-${invItem.id ?? itemKey}`,
-          name: invItem.name,
-          quantity: 1,
-          unit: invItem.unit ?? '',
-          category: invItem.category,
-          autoAdded: true,
-          addedDate: getDateString(),
-          isPurchased: false,
-        });
-        autoAddedItemsRef.current.add(itemKey);
-      }
-    });
+      const alreadyInList = shoppingListRef.current.some(
+        (s) => s.name.toLowerCase() === invItem.name.toLowerCase() && s.autoAdded,
+      );
+      if (alreadyInList) return;
 
-    if (itemsToAdd.length > 0) {
-      setShoppingList(prev => [...prev, ...itemsToAdd]);
-    }
+      addShoppingListItem({
+        name: invItem.name,
+        quantity: 1,
+        unit: invItem.unit ?? '',
+        category: invItem.category,
+        autoAdded: true,
+        addedDate: getDateString(),
+        isPurchased: false,
+      }).catch((err) => console.error('Failed to auto-add shopping list item', err));
+    });
   }, [inventory]);
 
   return (
