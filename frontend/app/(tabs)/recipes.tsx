@@ -3,14 +3,16 @@ import { RecipeCard } from '@/components/recipes/RecipeCard';
 import { CookingModeModal } from '@/components/recipes/CookingModeModal';
 import { RecipeDetailsModal } from '@/components/recipes/RecipeDetailsModal';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { ProfileAvatarButton } from '@/components/ui/ProfileAvatarButton';
 import { recipesScreenStyles } from '@/components/recipes/recipes.styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { COLORS } from '@/constants/colors';
+import { useInventory } from '@/contexts/InventoryContext';
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, ListRenderItem, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getRecipes } from '@/services/data/recipesApi';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 
 const FILTER_OPTIONS = [
   { id: 'all', label: 'All' },
@@ -20,7 +22,8 @@ const FILTER_OPTIONS = [
 ] as const;
 
 export default function RecipesScreen() {
-  const router = useRouter();
+  const { savedRecipes, toggleSaveRecipe, pendingOpenRecipe, setPendingOpenRecipe, cookRecipe } = useInventory();
+
   const [search, setSearch] = useState('');
   const [filterId, setFilterId] = useState<string | null>('all');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -32,6 +35,8 @@ export default function RecipesScreen() {
   const [isRecipeModalVisible, setIsRecipeModalVisible] = useState(false);
   const [isCookingModeVisible, setIsCookingModeVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+
+  const savedIds = useMemo(() => new Set(savedRecipes.map((r) => r.id)), [savedRecipes]);
 
   const loadRecipes = useCallback(async () => {
     try {
@@ -51,6 +56,19 @@ export default function RecipesScreen() {
     useCallback(() => {
       loadRecipes();
     }, [loadRecipes]),
+  );
+
+  // Open modal when navigating from profile Saved section
+  useFocusEffect(
+    useCallback(() => {
+      if (pendingOpenRecipe) {
+        setSelectedRecipe(pendingOpenRecipe);
+        setIsRecipeModalVisible(true);
+        setIsCookingModeVisible(false);
+        setCurrentStep(0);
+        setPendingOpenRecipe(null);
+      }
+    }, [pendingOpenRecipe, setPendingOpenRecipe]),
   );
 
   const filtered = useMemo(() => {
@@ -105,11 +123,13 @@ export default function RecipesScreen() {
     if (!selectedRecipe) return;
     const last = selectedRecipe.instructions.length - 1;
     if (currentStep >= last) {
+      // Award points before closing: 1 ingredient = 10 pts
+      cookRecipe(selectedRecipe.id, selectedRecipe.ingredients.length);
       closeCookingMode();
       return;
     }
     setCurrentStep((s) => s + 1);
-  }, [selectedRecipe, currentStep, closeCookingMode]);
+  }, [selectedRecipe, currentStep, closeCookingMode, cookRecipe]);
 
   const goPreviousStep = useCallback(() => {
     setCurrentStep((s) => Math.max(0, s - 1));
@@ -120,7 +140,8 @@ export default function RecipesScreen() {
       <RecipeCard
         recipe={item}
         onViewRecipe={() => openRecipeModal(item)}
-        onBookmark={() => {}}
+        onBookmark={() => toggleSaveRecipe(item)}
+        bookmarked={savedIds.has(item.id)}
       />
     </View>
   );
@@ -129,15 +150,7 @@ export default function RecipesScreen() {
     <SafeAreaView style={recipesScreenStyles.safe} edges={['top']}>
       <View style={recipesScreenStyles.screenBody}>
         <View style={recipesScreenStyles.profileFixedLayer} pointerEvents="box-none">
-          <Pressable
-            style={recipesScreenStyles.profileBtn}
-            onPress={() => router.push('/profile')}
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-            hitSlop={10}
-          >
-            <Text style={recipesScreenStyles.profileBtnIcon}>👤</Text>
-          </Pressable>
+          <ProfileAvatarButton style={recipesScreenStyles.profileBtn} />
         </View>
 
         <View style={recipesScreenStyles.contentLayer}>

@@ -106,17 +106,8 @@ export const recipesScreenStyles = StyleSheet.create({
   },
   profileBtn: {
     position: 'absolute',
-    top: SPACING.sm,
+    top: SPACING.sm + 2,
     right: SPACING.lg,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileBtnIcon: {
-    fontSize: 18,
   },
   searchSpacing: {
     marginBottom: SPACING.sm,

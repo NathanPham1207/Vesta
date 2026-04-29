@@ -4,18 +4,29 @@ import { COLORS } from '@/constants/colors';
 import { SPACING } from '@/constants/spacing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInventory } from '@/contexts/InventoryContext';
-import { CrownIcon, getNextRank, getProgressToNextRank, getRankColor, getRankTier } from '@/utils/rankings/rankUtils';
+import {
+  ChefHatBadge,
+  CrownIcon,
+  getNextRank,
+  getProgressToNextRank,
+  getRankColor,
+  getRankTier,
+  getTierLabel,
+} from '@/utils/rankings/rankUtils';
 import { useRouter } from 'expo-router';
 import {
   Award,
   Bookmark,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
+  Clock,
   LogOut,
   Package,
   Settings,
   ShoppingCart,
   Trash2,
+  Users,
 } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -32,13 +43,16 @@ export default function ProfileScreen() {
   const router = useRouter();
   const {
     inventory,
-    bookmarkedRecipes,
+    savedRecipes,
     userRank,
     shoppingList,
     removeFromShoppingList,
+    toggleSaveRecipe,
+    setPendingOpenRecipe,
   } = useInventory();
 
   const [showShoppingList, setShowShoppingList] = useState(false);
+  const [showSavedRecipes, setShowSavedRecipes] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   const currentTier = getRankTier(userRank?.points || 0);
@@ -49,6 +63,12 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     signOut();
     router.replace('/login');
+  };
+
+  const handleOpenSavedRecipe = (recipe: Parameters<typeof setPendingOpenRecipe>[0]) => {
+    if (!recipe) return;
+    setPendingOpenRecipe(recipe);
+    router.push('/(tabs)/recipes');
   };
 
   return (
@@ -69,10 +89,15 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <View style={[styles.headerGradient, { backgroundColor: rankColors.bg }]} />
           <View style={styles.profileInfo}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
-              </Text>
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                </Text>
+              </View>
+              <View style={styles.chefHatPosition}>
+                <ChefHatBadge tier={currentTier} size={28} />
+              </View>
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.userName}>{user?.name || 'User'}</Text>
@@ -86,7 +111,7 @@ export default function ProfileScreen() {
               <CrownIcon tier={currentTier} size={32} />
               <View>
                 <Text style={[styles.rankTitle, { color: rankColors.text }]}>
-                  {currentTier === 'Master' ? '??? Secret Rank' : `${currentTier} Chef`}
+                  {getTierLabel(currentTier)}
                 </Text>
                 <Text style={styles.pointsText}>{userRank?.points || 0} points</Text>
               </View>
@@ -102,7 +127,7 @@ export default function ProfileScreen() {
                   />
                 </View>
                 <Text style={styles.progressLabel}>
-                  Progress to {nextRank.tier}: {Math.round(progressToNext)}%
+                  {getTierLabel(nextRank.tier)}: {userRank?.points || 0} / {nextRank.points} pts ({Math.round(progressToNext)}%)
                 </Text>
               </View>
             )}
@@ -112,13 +137,80 @@ export default function ProfileScreen() {
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           <StatCard title="Inventory" count={inventory.length} icon={<Package size={20} color={COLORS.primary} />} />
-          <StatCard title="Saved" count={bookmarkedRecipes.length} icon={<Bookmark size={20} color="#2563eb" />} />
+          <StatCard title="Saved" count={savedRecipes.length} icon={<Bookmark size={20} color="#2563eb" />} />
           <StatCard title="Cooked" count={userRank.cookedRecipes.length} icon={<Award size={20} color="#9333ea" />} />
         </View>
 
+        {/* Saved Recipes */}
+        <TouchableOpacity
+          style={styles.sectionHeader}
+          onPress={() => setShowSavedRecipes(!showSavedRecipes)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.row}>
+            <Bookmark size={24} color="#2563eb" />
+            <Text style={styles.sectionTitle}>Saved Recipes ({savedRecipes.length})</Text>
+          </View>
+          <ChevronDown
+            size={20}
+            color={COLORS.subtext}
+            style={{ transform: [{ rotate: showSavedRecipes ? '180deg' : '0deg' }] }}
+          />
+        </TouchableOpacity>
+
+        {showSavedRecipes && (
+          <View style={styles.listContainer}>
+            {savedRecipes.length === 0 ? (
+              <Text style={styles.emptyText}>No saved recipes yet. Tap the bookmark icon on any recipe.</Text>
+            ) : (
+              savedRecipes.map((recipe, index) => (
+                <TouchableOpacity
+                  key={recipe.id}
+                  style={[
+                    styles.savedRecipeItem,
+                    index === savedRecipes.length - 1 && styles.itemLast,
+                  ]}
+                  onPress={() => handleOpenSavedRecipe(recipe)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.savedRecipeInfo}>
+                    <Text style={styles.savedRecipeName} numberOfLines={1}>
+                      {recipe.title}
+                    </Text>
+                    <View style={styles.savedRecipeMeta}>
+                      <Clock size={12} color={COLORS.subtext} />
+                      <Text style={styles.savedRecipeMetaText}>{recipe.time}</Text>
+                      <Users size={12} color={COLORS.subtext} />
+                      <Text style={styles.savedRecipeMetaText}>{recipe.servings}</Text>
+                      <View style={[
+                        styles.difficultyBadge,
+                        recipe.difficulty === 'Easy' && styles.difficultyEasy,
+                        recipe.difficulty === 'Medium' && styles.difficultyMedium,
+                        recipe.difficulty === 'Hard' && styles.difficultyHard,
+                      ]}>
+                        <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.savedRecipeActions}>
+                    <TouchableOpacity
+                      onPress={() => toggleSaveRecipe(recipe)}
+                      hitSlop={8}
+                      style={styles.unsaveBtn}
+                    >
+                      <Trash2 size={16} color={COLORS.danger} />
+                    </TouchableOpacity>
+                    <ChevronRight size={18} color={COLORS.subtext} />
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
+
         {/* Shopping List */}
         <TouchableOpacity
-          style={styles.shoppingHeader}
+          style={[styles.sectionHeader, { marginTop: SPACING.sm }]}
           onPress={() => setShowShoppingList(!showShoppingList)}
           activeOpacity={0.7}
         >
@@ -134,7 +226,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         {showShoppingList && (
-          <View style={styles.shoppingListContainer}>
+          <View style={styles.listContainer}>
             {shoppingList.length === 0 ? (
               <Text style={styles.emptyText}>No items in your shopping list.</Text>
             ) : (
@@ -143,7 +235,7 @@ export default function ProfileScreen() {
                   key={item.id}
                   style={[
                     styles.shoppingItem,
-                    index === shoppingList.length - 1 && styles.shoppingItemLast,
+                    index === shoppingList.length - 1 && styles.itemLast,
                   ]}
                 >
                   <View style={styles.shoppingItemInfo}>
@@ -236,6 +328,11 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginTop: -40,
   },
+  avatarWrapper: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+  },
   avatar: {
     width: 80,
     height: 80,
@@ -245,6 +342,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: COLORS.surface,
+  },
+  chefHatPosition: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
   },
   avatarText: { fontSize: 24, fontWeight: 'bold', color: COLORS.primary },
   userDetails: { marginLeft: SPACING.sm, marginBottom: 5 },
@@ -273,7 +375,7 @@ const styles = StyleSheet.create({
   },
   statCount: { fontSize: 20, fontWeight: 'bold', marginVertical: 4, color: COLORS.text },
   statLabel: { fontSize: 12, color: COLORS.subtext },
-  shoppingHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -286,7 +388,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  shoppingListContainer: {
+  listContainer: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,
     marginTop: 4,
@@ -297,6 +399,38 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
+  // Saved recipes
+  savedRecipeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f1f5f9',
+  },
+  savedRecipeInfo: { flex: 1, marginRight: SPACING.sm },
+  savedRecipeName: { fontSize: 15, fontWeight: '500', color: COLORS.text },
+  savedRecipeMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  savedRecipeMetaText: { fontSize: 12, color: COLORS.subtext },
+  savedRecipeActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  unsaveBtn: { padding: 4 },
+  difficultyBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 4,
+  },
+  difficultyEasy: { backgroundColor: '#dcfce7' },
+  difficultyMedium: { backgroundColor: '#fef9c3' },
+  difficultyHard: { backgroundColor: '#fee2e2' },
+  difficultyText: { fontSize: 11, fontWeight: '600', color: COLORS.text },
+  // Shopping list
   shoppingItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -306,31 +440,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#f1f5f9',
   },
-  shoppingItemLast: {
-    borderBottomWidth: 0,
-  },
-  shoppingItemInfo: {
-    flex: 1,
-    marginRight: SPACING.sm,
-  },
-  shoppingItemName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  shoppingItemMeta: {
-    fontSize: 12,
-    color: COLORS.subtext,
-    marginTop: 2,
-  },
-  deleteBtn: {
-    padding: 4,
-  },
-  emptyText: {
-    padding: SPACING.md,
-    color: COLORS.subtext,
-    fontSize: 14,
-  },
+  itemLast: { borderBottomWidth: 0 },
+  shoppingItemInfo: { flex: 1, marginRight: SPACING.sm },
+  shoppingItemName: { fontSize: 15, fontWeight: '500', color: COLORS.text },
+  shoppingItemMeta: { fontSize: 12, color: COLORS.subtext, marginTop: 2 },
+  deleteBtn: { padding: 4 },
+  emptyText: { padding: SPACING.md, color: COLORS.subtext, fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text },
   footer: { marginTop: SPACING.xl, gap: SPACING.md, paddingBottom: 40 },

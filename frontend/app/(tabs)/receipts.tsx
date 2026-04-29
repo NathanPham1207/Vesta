@@ -8,6 +8,7 @@ import { RADIUS } from '@/constants/radius';
 import { SPACING } from '@/constants/spacing';
 import { FONT_SIZE, FONT_WEIGHT } from '@/constants/typography';
 import { getReceipts, type ReceiptItem } from '@/services/auth/receiptApi';
+import { ProfileAvatarButton } from '@/components/ui/ProfileAvatarButton';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -137,9 +138,7 @@ export default function ReceiptsScreen() {
           <Text style={styles.title}>Receipts</Text>
           <Text style={styles.subtitle}>Your scanned receipt history</Text>
         </View>
-        <Pressable style={styles.avatarBtn} onPress={() => router.push('/profile')} hitSlop={10}>
-          <Text style={styles.avatarIcon}>👤</Text>
-        </Pressable>
+        <ProfileAvatarButton />
       </View>
 
       <ScrollView
@@ -306,17 +305,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.small,
     color: COLORS.subtext,
     marginTop: 2,
-  },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.muted,
-  },
-  avatarIcon: {
-    fontSize: 18,
   },
   monthLabelText: {
     fontSize: FONT_SIZE.small,

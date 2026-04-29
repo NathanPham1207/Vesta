@@ -20,7 +20,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ProfileAvatarButton } from '@/components/ui/ProfileAvatarButton';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -170,9 +171,7 @@ export default function ScanScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topRightAvatarRow}>
-        <Pressable style={styles.avatarBtn} onPress={() => router.push('/profile')} hitSlop={10}>
-          <Text style={styles.avatarIcon}>👤</Text>
-        </Pressable>
+        <ProfileAvatarButton />
       </View>
 
       <View style={styles.body}>
@@ -236,17 +235,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
-  },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.muted,
-  },
-  avatarIcon: {
-    fontSize: 18,
   },
   manualCard: {
     marginTop: SPACING.xl,

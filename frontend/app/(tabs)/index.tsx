@@ -27,7 +27,8 @@ import {
 } from '@/utils/inventoryGrouping';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ProfileAvatarButton } from '@/components/ui/ProfileAvatarButton';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -162,9 +163,7 @@ export default function HomeScreen() {
             <Text style={styles.brandSubtitle}>Smart Inventory</Text>
           </View>
         </View>
-        <Pressable style={styles.avatarBtn} onPress={() => router.push('/profile')} hitSlop={10}>
-          <Text style={styles.avatarIcon}>👤</Text>
-        </Pressable>
+        <ProfileAvatarButton />
       </View>
       <ScrollView
         style={styles.scroll}
@@ -264,17 +263,6 @@ const styles = StyleSheet.create({
     color: COLORS.subtext,
     fontWeight: FONT_WEIGHT.medium,
     lineHeight: 18,
-  },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarIcon: {
-    fontSize: 18,
   },
   messageText: {
     color: COLORS.subtext,
