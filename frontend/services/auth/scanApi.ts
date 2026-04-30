@@ -42,6 +42,12 @@ type ApiSuccess<T> = {
   data: T;
 };
 
+type LegacyApiSuccess = {
+  success: true;
+  items?: unknown;
+  message?: string;
+};
+
 type ApiFailure = {
   success: false;
   message?: string;
@@ -90,6 +96,16 @@ function isApiFailure(value: unknown): value is ApiFailure {
   );
 }
 
+function isLegacyApiSuccess(value: unknown): value is LegacyApiSuccess {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'success' in value &&
+    (value as { success: unknown }).success === true &&
+    'items' in value
+  );
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
 
@@ -118,24 +134,48 @@ export async function scanReceipt(asset: ScanAsset): Promise<ScanReceiptResponse
   const formData = new FormData();
 
   if (asset.file) {
-    formData.append('image', asset.file);
+    formData.append('receipt', asset.file);
   } else {
     formData.append(
-      'image',
+      'receipt',
       toFormDataFile({ uri: fileUri!, name: fileName, type: mimeType }),
     );
   }
 
-  const response = await fetch(`${BASE_URL}/scan/analyze-image`, {
+  const response = await fetch(`${BASE_URL}/scan/receipt`, {
     method: 'POST',
     headers: getUploadHeaders(),
     body: formData,
   });
 
   const parsed = await parseResponse<unknown>(response);
-  
+
   if (isApiSuccess(parsed)) return parsed;
   if (isApiFailure(parsed)) return parsed;
+  if (isLegacyApiSuccess(parsed)) {
+    const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+
+    return {
+      success: true,
+      data: {
+        isFoodRelated: true,
+        imageType: 'receipt',
+        storeName: 'Scanned receipt',
+        purchaseDate: new Date().toISOString(),
+        items: rawItems.map((item) => {
+          const row = typeof item === 'object' && item !== null ? (item as Record<string, unknown>) : {};
+          return {
+            name: typeof row.name === 'string' ? row.name : null,
+            quantity: typeof row.quantity === 'number' ? row.quantity : 1,
+            unit: typeof row.unit === 'string' ? row.unit : null,
+            price: typeof row.price === 'number' ? row.price : null,
+            category: typeof row.category === 'string' ? row.category : 'Misc',
+            imageUrl: typeof row.imageUrl === 'string' ? row.imageUrl : null,
+          };
+        }),
+      },
+    };
+  }
 
   throw new Error(`Unexpected response format from scan endpoint (status ${response.status}).`);
 }
