@@ -53,12 +53,19 @@ export function getScanFailureMessage(reason?: string | null): string {
 export function getUnexpectedScanErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     const normalized = error.message.toLowerCase();
-    if (
-      normalized.includes('network') ||
-      normalized.includes('failed to fetch') ||
-      normalized.includes('request failed')
-    ) {
+
+    // Only treat as a network error when the request never reached the server.
+    // "request failed" is intentionally excluded here because it was previously
+    // produced by parseResponse on 4xx/5xx HTTP responses — those now throw the
+    // server's own message (e.g. "Unsupported image format…") and should be
+    // surfaced directly to the user, not masked as a network error.
+    if (normalized.includes('network') || normalized.includes('failed to fetch')) {
       return 'Network error. Please check your connection and try again.';
+    }
+
+    // Surface the server's error message if it's meaningful
+    if (error.message) {
+      return error.message;
     }
   }
   return SCAN_GENERIC_FAILURE_MESSAGE;

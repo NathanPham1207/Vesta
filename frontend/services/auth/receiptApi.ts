@@ -71,10 +71,11 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 }
 
 function calculateTotalAmount(items: ScanItem[]): number {
+  // price is already the total line price from the receipt (not a unit price),
+  // so we simply sum each item's price without multiplying by quantity.
   return items.reduce((sum, item) => {
     const price = typeof item.price === 'number' ? item.price : 0;
-    const quantity = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
-    return sum + price * quantity;
+    return sum + price;
   }, 0);
 }
 

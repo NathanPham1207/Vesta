@@ -22,7 +22,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/inventory", inventoryRoutes);
-app.use("/scan/receipt", receiptRoutes);
+// Mount scan routes at /scan so that /scan/analyze-image is reachable
+app.use("/scan", receiptRoutes);
 app.use("/receipts", receiptDataRoutes);
 app.use("/api/receipts", receiptDataRoutes);
 app.use("/recipes", recipeRoutes);

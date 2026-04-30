@@ -110,7 +110,16 @@ async function parseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} — ${text}`);
+    // Try to extract the server's error message from the JSON body
+    // so the caller gets a meaningful message instead of raw status text
+    let serverMessage: string | null = null;
+    try {
+      const json = JSON.parse(text) as { message?: unknown };
+      if (typeof json.message === 'string') serverMessage = json.message;
+    } catch {
+      // JSON parse failed — fall through to generic message
+    }
+    throw new Error(serverMessage ?? `Request failed: ${response.status}`);
   }
 
   try {

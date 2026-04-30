@@ -16,6 +16,8 @@ const upload = multer({
   },
 });
 
-router.post("/", upload.single("receipt"), scanReceipt);
+// Route: POST /scan/analyze-image
+// Field name "image" must match what the frontend sends via FormData
+router.post("/analyze-image", upload.single("image"), scanReceipt);
 
 module.exports = router;
